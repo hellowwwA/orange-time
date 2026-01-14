@@ -1,0 +1,9 @@
+services:
+  orange-time:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - /Users/lxn/docker/orange-time/tasks.json:/app/server/tasks.json
+    environment:
+      - CHOKIDAR_USEPOLLING=true

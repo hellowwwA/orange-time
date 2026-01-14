@@ -1,0 +1,30 @@
+[
+  {
+    "id": "new-1768361025753",
+    "title": "Seeding server/tasks.json with initial mock data",
+    "category": "Personal",
+    "dateStr": "Jan 14, 2026",
+    "description": "Backend: A simple Node.js server running on port 3001 that writes to server/tasks.json.\nData: Your tasks are now stored in server/tasks.json. This file is persistent on your disk.",
+    "status": "Done",
+    "content": "Backend: A simple Node.js server running on port 3001 that writes to server/tasks.json.\nData: Your tasks are now stored in server/tasks.json. This file is persistent on your disk.",
+    "endDateStr": "Jan 14, 2026"
+  },
+  {
+    "id": "new-1768363233073",
+    "title": "自动创建一个文件夹而不是文件，导致类型不匹配",
+    "category": "Learning",
+    "dateStr": "Jan 14, 2026",
+    "description": "1. 在主机上创建了目录 /Users/lxn/docker/orange-time。\n2. 在该目录下创建了空的 tasks.json 文件。\n3. 修复了 docker-compose.yml 的格式（补回了被删掉的 environment 部分）。",
+    "status": "ToDo",
+    "content": ""
+  },
+  {
+    "id": "new-1768367518119",
+    "title": "明天早上去看医生和我的兄弟",
+    "category": "Health",
+    "dateStr": "Jan 15, 2026",
+    "description": "",
+    "status": "ToDo",
+    "content": ""
+  }
+]
