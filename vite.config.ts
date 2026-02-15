@@ -9,6 +9,25 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       host: '0.0.0.0',
       proxy: {
+        '/api/auth/github/callback': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/api/auth': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/api/user': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/api/tasks': {
+          target: 'http://127.0.0.1:3001',
+          changeOrigin: true,
+        },
         '/api': {
           target: 'http://127.0.0.1:3001',
           changeOrigin: true,

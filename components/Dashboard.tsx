@@ -11,14 +11,9 @@ const COLORS = ['#f97316', '#e2e8f0'];
 
 const Dashboard: React.FC<DashboardProps> = ({ tasks, categories }) => {
 
-  // 1. Calculate Status Counts for Pie Chart and Stats
+  // 1. Calculate Status Counts
   const statusCounts = useMemo(() => {
-    const counts = {
-      done: 0,
-      inProgress: 0,
-      todo: 0,
-      total: tasks.length
-    };
+    const counts = { done: 0, inProgress: 0, todo: 0, total: tasks.length };
     tasks.forEach(t => {
       if (t.status === 'Done') counts.done++;
       else if (t.status === 'In Progress') counts.inProgress++;
@@ -27,34 +22,25 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, categories }) => {
     return counts;
   }, [tasks]);
 
-  // Pie Chart Data
   const pieData = [
     { name: 'Done', value: statusCounts.done },
     { name: 'Remaining', value: statusCounts.total - statusCounts.done },
   ];
 
-  // Percentage for the center of the pie chart
   const completionPercentage = statusCounts.total > 0
     ? Math.round((statusCounts.done / statusCounts.total) * 100)
     : 0;
 
-  // 2. Calculate Category Distribution
+  // 2. Category Distribution
   const categoryStats = useMemo(() => {
     return categories.map(cat => {
       const count = tasks.filter(t => t.category === cat.name).length;
       const percent = statusCounts.total > 0 ? (count / statusCounts.total) * 100 : 0;
-      return {
-        name: cat.name,
-        tasks: count,
-        percent: percent,
-        // Map the tailwind color classes to the bar color. 
-        // Using a safe default or mapping based on the 'bg-' class provided in global config
-        color: cat.color.replace('bg-', 'bg-') // essentially keeping the bg class passed in
-      };
-    }).sort((a, b) => b.tasks - a.tasks); // Sort by most tasks
+      return { name: cat.name, tasks: count, percent, color: cat.color };
+    }).sort((a, b) => b.tasks - a.tasks);
   }, [tasks, categories, statusCounts.total]);
 
-  // 3. Dynamic Stats Cards
+  // 3. Stats Cards
   const stats: StatCardProps[] = [
     {
       title: 'Total Tasks',
@@ -76,7 +62,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, categories }) => {
       title: 'In Progress',
       value: statusCounts.inProgress.toString().padStart(2, '0'),
       icon: 'sync',
-      colorClass: 'text-orange-400 border-l-orange-400',
+      colorClass: 'text-amber-500 border-l-amber-500',
       subtext: 'Currently active',
       subtextIcon: 'person'
     },
@@ -84,15 +70,39 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, categories }) => {
       title: 'Completed',
       value: statusCounts.done.toString().padStart(2, '0'),
       icon: 'check_circle',
-      colorClass: 'text-orange-300 border-l-orange-300',
+      colorClass: 'text-emerald-500 border-l-emerald-500',
       subtext: `${completionPercentage}% completion rate`,
       subtextIcon: 'verified'
     },
   ];
 
+  // Current date greeting
+  const now = new Date();
+  const hours = now.getHours();
+  const greeting = hours < 12 ? 'Good Morning' : hours < 18 ? 'Good Afternoon' : 'Good Evening';
+  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
-      <div className="mb-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+      {/* ─── Welcome Banner ─── */}
+      <div className="relative overflow-hidden rounded-2xl p-8 mb-8 animate-slide-up" style={{ background: 'linear-gradient(135deg, #f97316, #fb923c, #f59e0b)' }}>
+        {/* Decorative circles */}
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full"></div>
+        <div className="absolute -bottom-6 -right-20 w-56 h-56 bg-white/5 rounded-full"></div>
+        <div className="absolute top-4 right-32 w-16 h-16 bg-white/10 rounded-full"></div>
+
+        <div className="relative z-10">
+          <p className="text-orange-100 text-sm font-medium mb-1">{dateStr}</p>
+          <h2 className="text-3xl font-black text-white tracking-tight mb-2">{greeting} 👋</h2>
+          <p className="text-orange-100/80 text-sm max-w-md">
+            You have <span className="text-white font-bold">{statusCounts.todo} tasks</span> to complete and <span className="text-white font-bold">{statusCounts.inProgress} in progress</span>. Keep up the great work!
+          </p>
+        </div>
+      </div>
+
+      {/* ─── Breadcrumb ─── */}
+      <div className="mb-8 animate-slide-up stagger-1">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-2 uppercase tracking-widest">
           <span>Tasks</span>
           <span className="text-slate-300">/</span>
@@ -101,9 +111,11 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, categories }) => {
         <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Status Overview</h2>
       </div>
 
+      {/* ─── Charts Section ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
-        {/* Circular Chart Card */}
-        <div className="lg:col-span-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center py-10">
+
+        {/* Circular Chart */}
+        <div className="lg:col-span-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-soft flex flex-col items-center justify-center py-10 animate-slide-up stagger-2 hover-lift cursor-default">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Overall Completion</h3>
           <div className="relative w-48 h-48 flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
@@ -113,11 +125,12 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, categories }) => {
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
-                  outerRadius={80}
+                  outerRadius={82}
                   startAngle={90}
                   endAngle={-270}
                   dataKey="value"
                   stroke="none"
+                  cornerRadius={4}
                 >
                   {pieData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -126,39 +139,39 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, categories }) => {
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-5xl font-bold text-slate-900 leading-none">{completionPercentage}%</span>
-              <p className="text-[10px] text-slate-500 uppercase font-bold mt-1">Goal: 100%</p>
+              <span className="text-5xl font-black text-slate-900 leading-none animate-count-up">{completionPercentage}%</span>
+              <p className="text-[10px] text-slate-400 uppercase font-bold mt-1.5 tracking-wider">Goal: 100%</p>
             </div>
           </div>
-          <div className="mt-8 flex gap-4">
+          <div className="mt-8 flex gap-5">
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-primary"></div>
-              <span className="text-[11px] font-medium text-slate-500">Done ({statusCounts.done})</span>
+              <div className="w-3 h-3 rounded-full bg-primary shadow-sm shadow-orange-500/30"></div>
+              <span className="text-[11px] font-semibold text-slate-500">Done ({statusCounts.done})</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-slate-200"></div>
-              <span className="text-[11px] font-medium text-slate-500">Remaining ({statusCounts.total - statusCounts.done})</span>
+              <div className="w-3 h-3 rounded-full bg-slate-200"></div>
+              <span className="text-[11px] font-semibold text-slate-500">Remaining ({statusCounts.total - statusCounts.done})</span>
             </div>
           </div>
         </div>
 
         {/* Distribution Bars */}
-        <div className="lg:col-span-8 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div className="lg:col-span-8 bg-white p-6 rounded-2xl border border-slate-100 shadow-soft animate-slide-up stagger-3">
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Distribution by Category</h3>
-            <button className="text-xs text-primary font-bold hover:underline">Export Data</button>
+            <button className="text-xs text-primary font-bold hover:underline cursor-pointer transition-colors hover:text-primary-hover">Export Data</button>
           </div>
-          <div className="space-y-6 max-h-[300px] overflow-y-auto pr-2 scrollbar-hide">
-            {categoryStats.map((cat) => (
-              <div key={cat.name} className="space-y-2">
-                <div className="flex justify-between text-xs font-medium mb-1">
-                  <span className="text-slate-900">{cat.name}</span>
-                  <span className="text-slate-500">{cat.tasks} tasks</span>
+          <div className="space-y-5 max-h-[300px] overflow-y-auto pr-2 scrollbar-hide">
+            {categoryStats.map((cat, i) => (
+              <div key={cat.name} className="group cursor-default">
+                <div className="flex justify-between text-xs font-medium mb-2">
+                  <span className="text-slate-800 font-semibold group-hover:text-primary transition-colors">{cat.name}</span>
+                  <span className="text-slate-400 group-hover:text-slate-600 transition-colors">{cat.tasks} tasks · {Math.round(cat.percent)}%</span>
                 </div>
-                <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
                   <div
-                    className={`h-full ${cat.color} rounded-full transition-all duration-1000`}
-                    style={{ width: `${cat.percent}%` }}
+                    className={`h-full ${cat.color} rounded-full transition-all duration-1000 group-hover:opacity-80`}
+                    style={{ width: `${cat.percent}%`, transitionDelay: `${i * 100}ms` }}
                   ></div>
                 </div>
               </div>
@@ -167,19 +180,30 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, categories }) => {
         </div>
       </div>
 
-      {/* Metric Cards */}
+      {/* ─── Metric Cards ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => (
-          <div key={stat.title} className={`bg-white p-6 rounded-xl border border-slate-200 shadow-sm border-l-4 ${stat.colorClass.split(' ')[1]}`}>
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-bold text-slate-500 mb-1">{stat.title}</p>
-                <h4 className="text-3xl font-extrabold text-slate-900">{stat.value}</h4>
-              </div>
-              <span className={`material-symbols-outlined ${stat.colorClass.split(' ')[0]}`}>{stat.icon}</span>
+        {stats.map((stat, i) => (
+          <div
+            key={stat.title}
+            className={`relative bg-white p-6 rounded-2xl border border-slate-100 shadow-soft border-l-4 ${stat.colorClass.split(' ')[1]} hover-lift cursor-default overflow-hidden animate-slide-up stagger-${i + 3}`}
+          >
+            {/* Decorative background icon */}
+            <div className="absolute -bottom-2 -right-2 opacity-[0.04]">
+              <span className={`material-symbols-outlined text-7xl ${stat.colorClass.split(' ')[0]}`} style={{ fontSize: '80px' }}>{stat.icon}</span>
             </div>
-            <p className={`text-[10px] font-medium mt-4 flex items-center gap-1 ${stat.title === 'Completed' ? 'text-primary font-bold' : 'text-slate-500'}`}>
-              <span className="material-symbols-outlined text-[12px]">{stat.subtextIcon}</span>
+
+            <div className="relative z-10 flex items-start justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">{stat.title}</p>
+                <h4 className="text-4xl font-black text-slate-900 tracking-tight">{stat.value}</h4>
+              </div>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.colorClass.split(' ')[0]} bg-opacity-10`}
+                style={{ backgroundColor: stat.colorClass.includes('orange') ? '#fff7ed' : stat.colorClass.includes('amber') ? '#fffbeb' : stat.colorClass.includes('emerald') ? '#ecfdf5' : '#f1f5f9' }}>
+                <span className={`material-symbols-outlined text-xl ${stat.colorClass.split(' ')[0]}`}>{stat.icon}</span>
+              </div>
+            </div>
+            <p className={`relative z-10 text-[11px] font-medium mt-4 flex items-center gap-1.5 ${stat.title === 'Completed' ? 'text-emerald-600 font-bold' : 'text-slate-400'}`}>
+              <span className="material-symbols-outlined text-[13px]">{stat.subtextIcon}</span>
               {stat.subtext}
             </p>
           </div>

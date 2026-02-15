@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Task } from '../types';
+import { MdPreview, MdCatalog } from 'md-editor-rt';
+import 'md-editor-rt/lib/preview.css';
 
 interface TaskEditorProps {
     task: Task | null;
@@ -149,6 +151,9 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
 
     const [showCalendar, setShowCalendar] = useState<'start' | 'end' | null>(null);
     const calendarRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const mdFileInputRef = useRef<HTMLInputElement>(null);
+    const galleryRef = useRef<HTMLDivElement>(null);
     const summaryRef = useRef<HTMLTextAreaElement>(null);
 
     // Auto-resize summary textarea
@@ -164,6 +169,62 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
             setFormData({ ...task });
         }
     }, [task]);
+
+    // TOC State & Logic
+    const editorId = 'task-editor-preview';
+    const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
+    const [headings, setHeadings] = useState<{ id: string; level: number; active: boolean }[]>([]);
+
+    useEffect(() => {
+        const main = document.querySelector('main');
+        setScrollElement(main || document.documentElement);
+    }, []);
+
+    // Extract headings
+    useEffect(() => {
+        if (!formData.content) return;
+        const timer = setTimeout(() => {
+            const previewElement = document.getElementById(editorId);
+            if (!previewElement) return;
+            const headingElements = previewElement.querySelectorAll('h1, h2, h3, h4, h5, h6');
+            setHeadings(Array.from(headingElements).map((el) => ({
+                id: el.id,
+                level: parseInt(el.tagName.substring(1)),
+                active: false,
+            })));
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [formData.content, editorId]);
+
+    // Scroll Spy
+    useEffect(() => {
+        if (!headings.length) return;
+        const handleScroll = () => {
+            const topOffset = 100;
+            let activeId = '';
+            // Find the last heading that is above the threshold
+            for (const heading of headings) {
+                const element = document.getElementById(heading.id);
+                if (element) {
+                    const rect = element.getBoundingClientRect();
+                    if (rect.top <= topOffset + 50) {
+                        activeId = heading.id;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            setHeadings(prev => {
+                // Only update if changed
+                const isSame = prev.every(h => h.active === (h.id === activeId));
+                if (isSame) return prev;
+                return prev.map(h => ({ ...h, active: h.id === activeId }));
+            });
+        };
+        window.addEventListener('scroll', handleScroll);
+        handleScroll();
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [headings.map(h => h.id).join(',')]);
 
     // Real-time update wrapper
     const handleChange = (field: keyof Task, value: any) => {
@@ -262,7 +323,7 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
     };
 
     return (
-        <div className="max-w-4xl mx-auto px-6 py-8 bg-white min-h-[calc(100vh-80px)] shadow-lg my-6 rounded-xl animate-fade-in relative">
+        <div className="w-full max-w-[90%] mx-auto px-6 py-8 bg-white min-h-[calc(100vh-80px)] shadow-lg my-6 rounded-xl animate-fade-in relative text-sm">
             <header className="mb-4">
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
                     <input
@@ -385,21 +446,161 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
 
             <hr className="border-slate-100 mb-6" />
 
-            {/* Content Area - Markdown */}
-            <div className="space-y-6">
-                <div className="group relative">
-                    <textarea
-                        className="w-full min-h-[400px] text-slate-600 leading-8 text-lg outline-none resize-none bg-transparent placeholder-slate-300 font-normal font-mono"
-                        placeholder="Type your detailed notes here (Markdown supported)..."
-                        value={formData.content || ''}
-                        onChange={(e) => handleChange('content', e.target.value)}
-                    />
-                    {/* Simple visual cue for blocks */}
-                    <div className="absolute -left-10 top-2 opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity pointer-events-none">
-                        <span className="material-symbols-outlined text-[18px] text-slate-200">drag_indicator</span>
+            {/* Content Area - Markdown Upload & Preview */}
+            {formData.content ? (
+                <div>
+                    {/* Re-upload bar */}
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2 text-slate-400 text-sm">
+                            <span className="material-symbols-outlined text-[18px]">description</span>
+                            <span>Markdown Document</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => mdFileInputRef.current?.click()}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-primary hover:bg-orange-50 rounded-lg transition-all"
+                            >
+                                <span className="material-symbols-outlined text-[16px]">upload_file</span>
+                                Re-upload
+                            </button>
+                        </div>
+                    </div>
+                    {/* Markdown Preview with TOC Layout */}
+                    <div className="flex relative items-start h-full min-h-[500px]">
+                        <div className={`flex-1 overflow-hidden min-w-0 transition-all duration-300 pr-12`}>
+                            <MdPreview
+                                editorId={editorId}
+                                modelValue={formData.content}
+                                previewTheme="github"
+                                style={{ minHeight: '300px', padding: '16px', fontSize: '14px' }}
+                            />
+                            {/* Style to prevent header occlusion on scroll */}
+                            <style>{`
+                                /* Apply scroll-margin to all headings in the preview */
+                                #${editorId} h1, 
+                                #${editorId} h2, 
+                                #${editorId} h3, 
+                                #${editorId} h4, 
+                                #${editorId} h5, 
+                                #${editorId} h6 {
+                                    scroll-margin-top: 120px !important;
+                                    transition: background-color 0.3s ease;
+                                }
+                                
+                                /* Also apply to any heading with an id (TOC targets) */
+                                h1[id], h2[id], h3[id], h4[id], h5[id], h6[id] {
+                                    scroll-margin-top: 120px !important;
+                                }
+                                
+                                /* CRITICAL: Apply scroll-padding to the main container which is the actual scroll element */
+                                main {
+                                    scroll-padding-top: 120px;
+                                }
+                                
+                                /* Heading highlight animation */
+                                @keyframes heading-highlight {
+                                    0% { background-color: rgba(147, 197, 253, 0.4); }
+                                    50% { background-color: rgba(147, 197, 253, 0.6); }
+                                    100% { background-color: transparent; }
+                                }
+                                
+                                .heading-highlight-active {
+                                    animation: heading-highlight 1.5s ease-out;
+                                    border-radius: 4px;
+                                }
+                            `}</style>
+                        </div>
+
+
+                        {/* TOC Hover Interaction - Absolute + Sticky */}
+                        <div className="absolute -right-6 top-0 h-full w-12 z-50 pointer-events-none">
+                            <div className="sticky top-24 pointer-events-auto group w-12 hover:w-64 transition-all duration-300 min-h-[300px] flex justify-end">
+
+                                {/* Visual Skeleton (Default View) */}
+                                <div className="absolute top-2 right-0 w-12 flex flex-col items-end pr-3 gap-3 opacity-100 group-hover:opacity-0 transition-opacity duration-200 delay-75 pointer-events-none">
+                                    {headings.map((heading, index) => {
+                                        let widthClass = 'w-4';
+                                        if (heading.level === 1) widthClass = 'w-6';
+                                        if (heading.level === 2) widthClass = 'w-5';
+                                        if (heading.level >= 3) widthClass = 'w-4';
+
+                                        return (
+                                            <div
+                                                key={heading.id + index}
+                                                className={`${widthClass} h-1 rounded-full transition-colors duration-300 ${heading.active ? 'bg-slate-600' : 'bg-slate-200'}`}
+                                            ></div>
+                                        );
+                                    })}
+                                    {headings.length === 0 && (
+                                        <>
+                                            <div className="w-6 h-1 bg-slate-200 rounded-full"></div>
+                                            <div className="w-4 h-1 bg-slate-200 rounded-full"></div>
+                                            <div className="w-5 h-1 bg-slate-200 rounded-full"></div>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Expanded TOC Popup */}
+                                <div className="absolute top-0 right-full mr-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 p-4 max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar 
+                                                opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 origin-top-right z-10">
+                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 pb-2 border-b border-slate-200">
+                                        Contents
+                                    </div>
+                                    <MdCatalog
+                                        editorId={editorId}
+                                        scrollElement={scrollElement || document.documentElement}
+                                        scrollElementOffsetTop={120}
+                                        theme="light"
+                                        onClick={(e, tocItem) => {
+                                            // 检查目标标题是否已经完整可见且不被header遮挡
+                                            // ID格式确认:直接使用标题文本,无前缀
+                                            const targetElement = document.getElementById(tocItem.text);
+
+                                            if (targetElement) {
+                                                const rect = targetElement.getBoundingClientRect();
+                                                const headerHeight = 65; // 固定header高度
+                                                const clearance = 55; // 期望的间隔
+                                                const minTop = headerHeight + clearance;
+
+                                                // 检查标题是否完全在可视区域内
+                                                const isFullyVisible =
+                                                    rect.top >= minTop &&
+                                                    rect.bottom <= window.innerHeight;
+
+                                                if (isFullyVisible) {
+                                                    // 标题已经完整可见,阻止滚动
+                                                    e.preventDefault();
+                                                }
+                                                
+                                                // 添加高亮动画效果
+                                                targetElement.classList.remove('heading-highlight-active');
+                                                // 强制重排以重新触发动画
+                                                void targetElement.offsetWidth;
+                                                targetElement.classList.add('heading-highlight-active');
+                                                
+                                                // 动画结束后移除类
+                                                setTimeout(() => {
+                                                    targetElement.classList.remove('heading-highlight-active');
+                                                }, 1500);
+                                            }
+                                        }}
+                                        className="text-sm text-slate-600 [&_.md-editor-catalog-link]:block [&_.md-editor-catalog-link]:py-1 [&_.md-editor-catalog-link]:px-2 [&_.md-editor-catalog-link]:rounded-md [&_.md-editor-catalog-link]:truncate [&_.md-editor-catalog-link:hover]:bg-slate-200/50 [&_.md-editor-catalog-link-active]:text-primary [&_.md-editor-catalog-link-active]:bg-orange-50 [&_.md-editor-catalog-link-active]:font-semibold cursor-pointer"
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            ) : (
+                <div
+                    onClick={() => mdFileInputRef.current?.click()}
+                    className="border-2 border-dashed border-slate-200 rounded-xl min-h-[300px] flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-orange-50/50 transition-all group"
+                >
+                    <span className="material-symbols-outlined text-5xl text-slate-300 group-hover:text-primary transition-colors mb-4">markdown</span>
+                    <h3 className="text-lg font-bold text-slate-600 group-hover:text-primary transition-colors">Upload Markdown</h3>
+                    <p className="text-slate-400 text-sm">Click to browse or drop file here</p>
+                </div>
+            )}
         </div >
     );
 };

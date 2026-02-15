@@ -1,30 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Orange Time</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              primary: "#f97316", // Orange-500
-              "primary-hover": "#ea580c", // Orange-600
-              secondary: "#64748b", // Slate-500
-              background: "#f8fafc", // Slate-50
-              surface: "#ffffff",
-            },
-            fontFamily: {
-              sans: ["Inter", "sans-serif"],
-            },
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orange Time</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: "#f97316",
+            "primary-hover": "#ea580c",
+            accent: "#fb923c",
+            warm: "#fef3c7",
+            secondary: "#64748b",
+            background: "#f8fafc",
+            surface: "#ffffff",
+          },
+          fontFamily: {
+            sans: ["Inter", "sans-serif"],
+          },
+          boxShadow: {
+            soft: "0 2px 16px -4px rgba(249,115,22,0.10), 0 2px 4px -2px rgba(0,0,0,0.04)",
+            glow: "0 0 20px -4px rgba(249,115,22,0.25)",
+          },
+          borderRadius: {
+            "4xl": "2rem",
           },
         },
-      };
-    </script>
+      },
+    };
+  </script>
 
   <script type="importmap">
 {
@@ -36,10 +48,12 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
+  <link rel="stylesheet" href="/index.css">
 </head>
-  <body>
-    <div id="root"></div>
+
+<body>
+  <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
+
 </html>

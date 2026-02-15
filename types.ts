@@ -21,4 +21,6 @@ export interface Task {
   status: 'Done' | 'In Progress' | 'ToDo';
   priority?: 'High' | 'Medium' | 'Low';
   content?: string; // HTML or Markdown content for the editor
+  cover?: string; // Cover image URL
+  coverPosition?: number; // 0-100% vertical position
 }

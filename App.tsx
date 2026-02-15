@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Dashboard from './components/Dashboard';
 import Timeline from './components/Timeline';
 import TaskEditor from './components/TaskEditor';
 import Tooltip from './components/Tooltip';
 import Snowfall from './components/Snowfall';
+import Login from './pages/Login';
+import ProtectedRoute from './components/ProtectedRoute';
 import { ViewState, Task } from './types';
+import { getCurrentUser, logout, User } from './utils/auth'; // Import auth utilities
 
 // Global Categories Configuration
 export const CATEGORIES = [
@@ -107,12 +111,14 @@ const generateMockTasks = (): Task[] => {
   return tasks.sort((a, b) => new Date(a.dateStr).getTime() - new Date(b.dateStr).getTime());
 };
 
-const App: React.FC = () => {
+/**
+ * Main App Component - Protected by authentication
+ */
+const MainApp: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
   const [previousView, setPreviousView] = useState<ViewState>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-
 
   const menuRef = useRef<HTMLDivElement>(null);
   const [timelineCategory, setTimelineCategory] = useState('All Categories');
@@ -120,6 +126,42 @@ const App: React.FC = () => {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isSnowing, setIsSnowing] = useState(false);
+
+  // User Authentication State
+  const [user, setUser] = useState<User | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Load User Data
+  useEffect(() => {
+    getCurrentUser().then(userData => {
+      setUser(userData);
+    }).catch(err => console.error('Failed to load user:', err));
+  }, []);
+
+  // Close User Menu on Outside Click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Handle Logout
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // Manually clear cookie on frontend as a fallback
+      document.cookie = "JSESSIONID=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      window.location.href = '/login'; // Redirect to login page
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Optional: Show error notification
+    }
+  };
 
   // Scroll management
   const mainRef = useRef<HTMLElement>(null);
@@ -235,7 +277,7 @@ const App: React.FC = () => {
       {isSnowing && <Snowfall />}
 
       {/* Sticky Header - Glass Effect */}
-      <header className="sticky top-0 z-50 bg-white/40 backdrop-blur-xl border-b border-orange-100/50 shadow-[0_4px_30px_-10px_rgba(249,115,22,0.1)] transition-all duration-300">
+      <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-2xl border-b border-orange-100/40 shadow-[0_4px_30px_-10px_rgba(249,115,22,0.08)] transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-16 relative">
 
@@ -251,11 +293,11 @@ const App: React.FC = () => {
                 </button>
               )}
 
-              <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setCurrentView('dashboard')}>
-                <div className={`h-9 w-9 rounded-xl flex items-center justify-center transition-all duration-500 ${currentView === 'editor' ? 'text-primary' : 'bg-gradient-to-br from-orange-400 to-orange-600 shadow-lg shadow-orange-500/30 group-hover:scale-110'}`}>
+              <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => setCurrentView('dashboard')}>
+                <div className={`h-9 w-9 rounded-xl flex items-center justify-center transition-all duration-500 ${currentView === 'editor' ? 'text-primary' : 'bg-gradient-to-br from-orange-400 to-orange-600 shadow-lg shadow-orange-500/30 group-hover:scale-110 group-hover:rotate-12'}`}>
                   <span className={`material-symbols-outlined text-xl ${currentView === 'editor' ? 'text-inherit' : 'text-white'}`}>nutrition</span>
                 </div>
-                <h1 className={`text-sm font-black tracking-tight uppercase ${currentView === 'editor' ? 'text-primary' : 'bg-gradient-to-r from-orange-600 via-orange-500 to-yellow-500 bg-clip-text text-transparent group-hover:from-orange-500 group-hover:to-orange-600'}`}>orange time</h1>
+                <h1 className={`text-sm font-black tracking-tight uppercase ${currentView === 'editor' ? 'text-primary' : 'bg-gradient-to-r from-orange-600 via-orange-500 to-amber-400 bg-clip-text text-transparent'}`}>orange time</h1>
               </div>
             </div>
 
@@ -313,11 +355,12 @@ const App: React.FC = () => {
               ) : (
                 /* Editor specific actions */
                 <div className="flex items-center gap-2">
-                  {/* Added Save Button */}
+                  {/* Save Button */}
                   <button
                     onClick={() => setCurrentView(previousView)}
-                    className="flex items-center gap-1 bg-primary hover:bg-orange-600 text-white px-4 py-1.5 rounded-lg font-bold text-xs shadow-sm shadow-orange-500/20 transition-all mr-2"
+                    className="flex items-center gap-1.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-5 py-2 rounded-xl font-bold text-xs shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/30 transition-all mr-2 cursor-pointer"
                   >
+                    <span className="material-symbols-outlined text-[14px]">check</span>
                     Save
                   </button>
 
@@ -343,6 +386,42 @@ const App: React.FC = () => {
                       </div>
                     )}
                   </div>
+                </div>
+              )}
+
+              {/* User Avatar & Logout - Only Show if User is Logged In */}
+              {user && (
+                <div className="relative ml-2" ref={userMenuRef}>
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex items-center justify-center transition-all rounded-full hover:ring-2 hover:ring-orange-200"
+                    title={user.username}
+                  >
+                    {user.avatarUrl ? (
+                      <img
+                        src={user.avatarUrl}
+                        alt={user.username}
+                        className="w-8 h-8 rounded-full border border-orange-100 shadow-sm object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-sm border border-orange-200">
+                        {user.username.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-40 bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border border-slate-100 py-1 z-50 animate-fade-in origin-top-right">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-2 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">logout</span>
+                        Logout
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -381,6 +460,34 @@ const App: React.FC = () => {
 
 
     </div>
+  );
+};
+
+/**
+ * App Component with Routing
+ */
+const App: React.FC = () => {
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <MainApp />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/timeline"
+        element={
+          <ProtectedRoute>
+            <MainApp />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
   );
 };
 

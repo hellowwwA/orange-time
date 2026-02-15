@@ -24,40 +24,24 @@ const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, onC
     return tasks.filter(t => t.category === selectedCategory);
   }, [tasks, selectedCategory]);
 
-  // Group by Date for display based on ViewMode
   const groupedTasks = useMemo(() => {
     const groups: Record<string, Task[]> = {};
-
-    // Sort tasks by date first to ensure internal order
     const sortedTasks = [...filteredTasks].sort((a, b) => new Date(a.dateStr).getTime() - new Date(b.dateStr).getTime());
 
     sortedTasks.forEach(task => {
       const date = new Date(task.dateStr);
-      let key = task.dateStr; // Default Day format
-
+      let key = task.dateStr;
       if (viewMode === 'Month') {
-        const monthStr = date.toLocaleDateString('en-US', { month: 'long' });
-        const yearStr = date.getFullYear();
-        // Format: "January, 2026"
-        key = `${monthStr}, ${yearStr}`;
+        key = `${date.toLocaleDateString('en-US', { month: 'long' })}, ${date.getFullYear()}`;
       }
-
-      if (!groups[key]) {
-        groups[key] = [];
-      }
+      if (!groups[key]) groups[key] = [];
       groups[key].push(task);
     });
     return groups;
   }, [filteredTasks, viewMode]);
 
-  // Ensure groups are sorted chronologically
   const sortedGroupKeys = useMemo(() => {
-    return Object.keys(groupedTasks).sort((a, b) => {
-      // Parse key back to date for sorting
-      const dateA = new Date(a);
-      const dateB = new Date(b);
-      return dateA.getTime() - dateB.getTime();
-    });
+    return Object.keys(groupedTasks).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
   }, [groupedTasks]);
 
   const getCategoryStyles = (catName: string) => {
@@ -77,25 +61,26 @@ const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, onC
     }
   };
 
-  // Only show first 5 categories to fit UI, or use scroll
   const displayCategories = categories.slice(0, 5);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 animate-fade-in">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
+      {/* ─── Page Header ─── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 animate-slide-up">
         <div>
           <h2 className="text-4xl font-black tracking-tight text-slate-900">Timeline View</h2>
-          <p className="text-slate-500 font-medium mt-1">Your personal productivity roadmap</p>
+          <p className="text-slate-400 font-medium mt-1">Your personal productivity roadmap</p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex bg-orange-100/40 p-1 rounded-xl backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex bg-slate-100/80 p-1 rounded-xl">
             {(['Day', 'Month'] as ViewMode[]).map((mode) => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}
-                className={`px-5 py-2 text-xs font-bold rounded-lg transition-all ${viewMode === mode
-                  ? 'bg-white/80 shadow-sm text-primary ring-1 ring-orange-100'
-                  : 'text-slate-500 hover:text-primary hover:bg-white/30'
+                className={`px-5 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${viewMode === mode
+                  ? 'bg-white shadow-sm text-primary ring-1 ring-orange-100'
+                  : 'text-slate-400 hover:text-primary hover:bg-white/50'
                   }`}
               >
                 {mode}
@@ -104,7 +89,7 @@ const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, onC
           </div>
           <button
             onClick={onCreateNew}
-            className="flex items-center gap-1.5 bg-white/60 hover:bg-white text-orange-600 border border-orange-200/60 px-3 py-1.5 rounded-lg font-bold text-xs transition-all shadow-sm hover:shadow-md hover:text-orange-500"
+            className="flex items-center gap-1.5 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-xl font-bold text-xs transition-all shadow-sm shadow-orange-500/20 hover:shadow-md hover:shadow-orange-500/30 cursor-pointer"
           >
             <span className="material-symbols-outlined text-[16px]">add</span>
             New Task
@@ -112,122 +97,158 @@ const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, onC
         </div>
       </div>
 
-      <div className="flex gap-3 mb-12 overflow-x-auto pb-4 scrollbar-hide">
+      {/* ─── Category Filters ─── */}
+      <div className="flex gap-2.5 mb-10 overflow-x-auto pb-3 scrollbar-hide animate-slide-up stagger-1">
         <button
           onClick={() => handleCategoryClick('All Categories')}
-          className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap shadow-sm transition-all ${selectedCategory === 'All Categories' ? 'bg-[#E04F00] text-white shadow-orange-500/20' : 'bg-white/60 backdrop-blur-sm text-slate-600 border border-slate-200/60 hover:bg-orange-50/50 hover:border-orange-200/60'}`}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${selectedCategory === 'All Categories'
+            ? 'bg-primary text-white shadow-md shadow-orange-500/20'
+            : 'bg-white text-slate-500 border border-slate-200/80 hover:bg-orange-50 hover:text-primary hover:border-orange-200'}`}
         >
-          {/* Dot for All Categories: White when active for contrast against orange */}
-          <span className={`w-2.5 h-2.5 rounded-full ${selectedCategory === 'All Categories' ? 'bg-white' : 'bg-slate-900'}`}></span>
+          <span className={`material-symbols-outlined text-[16px]`}>grid_view</span>
           All Categories
         </button>
         {displayCategories.map((cat) => (
           <button
             key={cat.name}
             onClick={() => handleCategoryClick(cat.name)}
-            className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap shadow-sm ${selectedCategory === cat.name ? 'text-white shadow-orange-500/30 border border-transparent' : 'bg-white/60 backdrop-blur-sm hover:bg-orange-50/50 border border-slate-200/60 text-slate-600'}`}
-            style={selectedCategory === cat.name ? { backgroundColor: '#E04F00' } : {}}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${selectedCategory === cat.name
+              ? 'bg-primary text-white shadow-md shadow-orange-500/20'
+              : 'bg-white text-slate-500 border border-slate-200/80 hover:bg-orange-50 hover:text-primary hover:border-orange-200'}`}
           >
-            <span className={`material-symbols-outlined text-[16px] ${selectedCategory === cat.name ? 'text-white' : cat.text}`}>{getIconForCategory(cat.name)}</span> {cat.name}
+            <span className={`material-symbols-outlined text-[16px] ${selectedCategory === cat.name ? 'text-white' : cat.text}`}>{getIconForCategory(cat.name)}</span>
+            {cat.name}
           </button>
         ))}
       </div>
 
+      {/* ─── Timeline Content ─── */}
       <div className="relative">
+        {/* Timeline vertical line */}
+        <div className="absolute left-[11px] top-4 bottom-4 w-px bg-gradient-to-b from-orange-200 via-orange-100 to-transparent hidden md:block"></div>
+
         <div className="space-y-10">
+          {sortedGroupKeys.length === 0 ? (
+            /* Empty state */
+            <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+              <div className="w-20 h-20 rounded-2xl bg-orange-50 flex items-center justify-center mb-4">
+                <span className="material-symbols-outlined text-4xl text-orange-300">event_available</span>
+              </div>
+              <h3 className="text-lg font-bold text-slate-400 mb-1">No tasks found</h3>
+              <p className="text-sm text-slate-300 mb-4">Create a new task to get started</p>
+              <button
+                onClick={onCreateNew}
+                className="text-sm font-bold text-primary hover:underline cursor-pointer"
+              >+ Add your first task</button>
+            </div>
+          ) : (
+            sortedGroupKeys.map((dateStr, groupIdx) => {
+              const tasksForDay = groupedTasks[dateStr];
+              const dateParts = dateStr.split(',');
+              const mainDate = dateParts[0];
+              const year = dateParts.length > 1 ? dateParts[1] : '';
 
-          {sortedGroupKeys.map((dateStr) => {
-            const tasksForDay = groupedTasks[dateStr];
-            const dateParts = dateStr.split(',');
-            const mainDate = dateParts[0];
-            const year = dateParts.length > 1 ? dateParts[1] : '';
+              return (
+                <section key={dateStr} className={`relative z-10 animate-slide-up stagger-${Math.min(groupIdx + 1, 6)}`}>
+                  {/* Date header with timeline dot */}
+                  <div className="flex items-center mb-5 md:pl-8">
+                    {/* Timeline dot */}
+                    <div className="absolute left-0 w-6 h-6 rounded-full bg-white border-[3px] border-orange-300 hidden md:flex items-center justify-center z-10">
+                      <div className="w-2 h-2 rounded-full bg-primary"></div>
+                    </div>
 
-            return (
-              <section key={dateStr} className="relative z-10">
-                <div className="flex items-center mb-5">
-                  <div className="relative flex items-center">
                     <div className="flex items-baseline gap-2">
                       <span className="text-xl font-black text-slate-900">{mainDate}{year && ','}</span>
                       {year && <span className="text-xl font-black text-primary">{year}</span>}
                     </div>
+                    <div className="h-px flex-1 bg-gradient-to-r from-orange-200/50 to-transparent ml-5"></div>
                   </div>
-                  <div className="h-px flex-1 bg-gradient-to-r from-orange-200/50 to-transparent ml-6"></div>
-                </div>
 
-                <div className="space-y-4">
-                  {tasksForDay.map(task => {
-                    const styles = getCategoryStyles(task.category);
-                    // Lighten border for glass effect
-                    const borderColor = styles.border.replace('border-', 'border-opacity-50 ');
+                  {/* Task cards */}
+                  <div className="space-y-3 md:pl-8">
+                    {tasksForDay.map(task => {
+                      const styles = getCategoryStyles(task.category);
 
-                    return (
-                      <div
-                        key={task.id}
-                        onClick={() => onTaskClick(task)}
-                        className={`bg-white/60 backdrop-blur-md border ${borderColor} ${styles.border} rounded-2xl shadow-sm hover:shadow-xl hover:shadow-orange-500/5 hover:border-primary/30 transition-all duration-300 group relative cursor-pointer overflow-hidden`}
-                      >
+                      return (
+                        <div
+                          key={task.id}
+                          onClick={() => onTaskClick(task)}
+                          className={`bg-white/80 backdrop-blur-sm border border-slate-100 rounded-2xl shadow-soft hover:shadow-glow hover:border-orange-200/60 transition-all duration-300 group relative cursor-pointer overflow-hidden hover-lift`}
+                        >
+                          {/* Left category accent bar */}
+                          <div className={`absolute left-0 top-0 bottom-0 w-1 ${styles.color} rounded-l-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
 
-                        <div className="p-5 pr-12">
-                          {/* Top Row: Date & Priority */}
-                          <div className="flex items-center gap-2 mb-3 text-[11px] font-bold whitespace-nowrap">
-                            <span className="flex items-center gap-1.5 text-slate-400">
-                              <span className="material-symbols-outlined text-[14px]">calendar_today</span>
-                              <span>
-                                {task.dateStr}
-                                {task.endDateStr && ` - ${task.endDateStr}`}
+                          {/* Cover Image Background */}
+                          {task.cover && (
+                            <div className="absolute inset-0 z-0">
+                              <img
+                                src={task.cover}
+                                className="w-full h-full object-cover opacity-25 transition-all duration-700 group-hover:scale-105 group-hover:opacity-30"
+                                alt="cover"
+                                style={{ objectPosition: `center ${task.coverPosition || 50}%` }}
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-white/95 via-white/80 to-white/40" />
+                            </div>
+                          )}
+
+                          <div className="p-5 pr-14 relative z-10">
+                            {/* Top Row: Date & Priority */}
+                            <div className="flex items-center gap-2 mb-3 text-[11px] font-bold whitespace-nowrap">
+                              <span className="flex items-center gap-1.5 text-slate-400">
+                                <span className="material-symbols-outlined text-[14px]">calendar_today</span>
+                                <span>
+                                  {task.dateStr}
+                                  {task.endDateStr && ` - ${task.endDateStr}`}
+                                </span>
                               </span>
-                            </span>
+                              <span className="text-slate-200">•</span>
+                              <span className={`uppercase tracking-wider px-2 py-0.5 rounded-md text-[10px]
+                                ${task.priority === 'High' ? 'text-red-600 bg-red-50' :
+                                  task.priority === 'Medium' ? 'text-orange-600 bg-orange-50' :
+                                    'text-slate-500 bg-slate-50'}`}>
+                                {task.priority || 'Low'}
+                              </span>
+                            </div>
 
-                            <span className="text-slate-300">•</span>
-
-                            {/* Priority Badge - Borderless */}
-                            <span className={`uppercase tracking-wide 
-                                    ${task.priority === 'High' ? 'text-red-600' :
-                                task.priority === 'Medium' ? 'text-orange-600' :
-                                  'text-slate-500'}`}>
-                              {task.priority || 'Low'}
-                            </span>
-                          </div>
-
-                          {/* Title & Category Icon */}
-                          <div className="flex items-start gap-2 mb-2">
-                            <h3 className="text-lg font-bold text-slate-900 group-hover:text-primary transition-colors leading-tight">
+                            {/* Title */}
+                            <h3 className="text-lg font-bold text-slate-900 group-hover:text-primary transition-colors leading-tight mb-1.5">
                               {task.title}
                             </h3>
+
+                            {/* Description */}
+                            {task.description && (
+                              <p className="text-slate-400 text-sm leading-relaxed line-clamp-2">
+                                {task.description}
+                              </p>
+                            )}
                           </div>
 
-                          {/* Description */}
-                          <p className="text-slate-500 text-sm leading-relaxed whitespace-pre-wrap">
-                            {task.description}
-                          </p>
+                          {/* Status Icon - Top Right */}
+                          {task.status === 'Done' && (
+                            <div className="absolute top-4 right-4 z-10">
+                              <span className="material-symbols-outlined text-emerald-400 text-2xl">check_circle</span>
+                            </div>
+                          )}
+
+                          {/* Category Icon - Bottom Right */}
+                          <div className={`absolute bottom-4 right-4 h-9 w-9 rounded-xl ${styles.bg} flex items-center justify-center ${styles.text} border ${styles.border} transition-all group-hover:scale-110 shadow-sm z-10`}>
+                            <span className="material-symbols-outlined text-[18px]">{getIconForCategory(task.category)}</span>
+                          </div>
+
+                          {/* Progress Bar */}
+                          {task.status === 'In Progress' && (
+                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-50 rounded-b-2xl overflow-hidden">
+                              <div className={`h-full w-2/3 ${styles.color} opacity-70 rounded-full`}></div>
+                            </div>
+                          )}
                         </div>
-
-                        {/* Top Right Status Icon */}
-                        {task.status === 'Done' && (
-                          <div className="absolute top-4 right-4">
-                            <span className="material-symbols-outlined text-green-400 text-2xl">check_circle</span>
-                          </div>
-                        )}
-
-                        {/* Bottom Right Category Icon */}
-                        <div className={`absolute bottom-4 right-4 h-8 w-8 rounded-lg ${styles.bg} flex items-center justify-center ${styles.text} border ${styles.border} transition-transform group-hover:scale-105 shadow-sm bg-opacity-80`}>
-                          <span className="material-symbols-outlined text-[18px]">{getIconForCategory(task.category)}</span>
-                        </div>
-
-                        {/* In Progress Bar */}
-                        {task.status === 'In Progress' && (
-                          <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-50/50 rounded-b-2xl overflow-hidden">
-                            <div className={`h-full w-2/3 ${styles.color} opacity-80`}></div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            )
-          })}
-
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })
+          )}
         </div>
       </div>
     </div>
