@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getGitHubAuthUrl } from '../utils/auth';
+import { enableGuestMode, getGitHubAuthUrl } from '../utils/auth';
 
 /**
  * Login page component with glassmorphic design matching Orange Time style
@@ -19,6 +19,12 @@ const Login: React.FC = () => {
             setError('Failed to initiate GitHub login. Please try again.');
             setLoading(false);
         }
+    };
+
+    const handleGuestAccess = () => {
+        setError(null);
+        enableGuestMode();
+        window.location.href = '/dashboard';
     };
 
     return (
@@ -86,6 +92,15 @@ const Login: React.FC = () => {
                                 <span>Continue with GitHub</span>
                             </>
                         )}
+                    </button>
+
+                    <button
+                        onClick={handleGuestAccess}
+                        disabled={loading}
+                        className="w-full mt-3 bg-white border border-slate-200 hover:border-orange-200 hover:bg-orange-50/30 text-slate-700 font-semibold py-4 px-6 rounded-2xl transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <span className="material-symbols-outlined text-[20px] text-orange-500">visibility</span>
+                        <span>Continue as Guest (Readonly)</span>
                     </button>
 
                     {/* Separator */}

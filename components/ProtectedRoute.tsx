@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { getCurrentUser } from '../utils/auth';
+import { getCurrentUser, isGuestMode } from '../utils/auth';
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
@@ -17,10 +17,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         const checkAuth = async () => {
             try {
                 const user = await getCurrentUser();
-                setIsAuthenticated(user !== null);
+                setIsAuthenticated(user !== null || isGuestMode());
             } catch (error) {
                 console.error('Auth check failed:', error);
-                setIsAuthenticated(false);
+                setIsAuthenticated(isGuestMode());
             } finally {
                 setLoading(false);
             }

@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const API_BASE_URL = ''; // Use relative path to leverage Vite proxy
+const GUEST_MODE_KEY = 'guestMode';
 
 // Create axios instance with credentials support
 const api = axios.create({
@@ -18,6 +19,40 @@ export interface User {
     email: string | null;
     avatarUrl: string | null;
 }
+
+/**
+ * Enable guest mode in local storage
+ */
+export const enableGuestMode = (): void => {
+    try {
+        localStorage.setItem(GUEST_MODE_KEY, 'true');
+    } catch (error) {
+        console.error('Failed to enable guest mode:', error);
+    }
+};
+
+/**
+ * Disable guest mode in local storage
+ */
+export const disableGuestMode = (): void => {
+    try {
+        localStorage.removeItem(GUEST_MODE_KEY);
+    } catch (error) {
+        console.error('Failed to disable guest mode:', error);
+    }
+};
+
+/**
+ * Read guest mode state
+ */
+export const isGuestMode = (): boolean => {
+    try {
+        return localStorage.getItem(GUEST_MODE_KEY) === 'true';
+    } catch (error) {
+        console.error('Failed to read guest mode:', error);
+        return false;
+    }
+};
 
 /**
  * Get GitHub authorization URL

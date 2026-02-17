@@ -6,13 +6,14 @@ interface TimelineProps {
   categories: Array<{ name: string; color: string; border: string; text: string; bg: string }>;
   onTaskClick: (task: Task) => void;
   onCreateNew: () => void;
+  readonly?: boolean;
   selectedCategory: string;
   onCategorySelect: (category: string) => void;
 }
 
 type ViewMode = 'Day' | 'Month';
 
-const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, onCreateNew, selectedCategory, onCategorySelect }) => {
+const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, onCreateNew, readonly = false, selectedCategory, onCategorySelect }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('Day');
 
   const handleCategoryClick = (category: string) => {
@@ -87,13 +88,15 @@ const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, onC
               </button>
             ))}
           </div>
-          <button
-            onClick={onCreateNew}
-            className="flex items-center gap-1.5 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-xl font-bold text-xs transition-all shadow-sm shadow-orange-500/20 hover:shadow-md hover:shadow-orange-500/30 cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[16px]">add</span>
-            New Task
-          </button>
+          {!readonly && (
+            <button
+              onClick={onCreateNew}
+              className="flex items-center gap-1.5 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-xl font-bold text-xs transition-all shadow-sm shadow-orange-500/20 hover:shadow-md hover:shadow-orange-500/30 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px]">add</span>
+              New Task
+            </button>
+          )}
         </div>
       </div>
 
@@ -136,10 +139,12 @@ const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, onC
               </div>
               <h3 className="text-lg font-bold text-slate-400 mb-1">No tasks found</h3>
               <p className="text-sm text-slate-300 mb-4">Create a new task to get started</p>
-              <button
-                onClick={onCreateNew}
-                className="text-sm font-bold text-primary hover:underline cursor-pointer"
-              >+ Add your first task</button>
+              {!readonly && (
+                <button
+                  onClick={onCreateNew}
+                  className="text-sm font-bold text-primary hover:underline cursor-pointer"
+                >+ Add your first task</button>
+              )}
             </div>
           ) : (
             sortedGroupKeys.map((dateStr, groupIdx) => {

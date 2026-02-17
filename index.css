@@ -8,6 +8,22 @@ body {
     font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
+.summary-input {
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+    box-shadow: none;
+}
+
+.summary-input:focus,
+.summary-input:focus-visible,
+.summary-input:active {
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    -webkit-box-shadow: none !important;
+}
+
 /* Custom scrollbar hiding for clean timeline */
 .scrollbar-hide::-webkit-scrollbar {
     display: none;

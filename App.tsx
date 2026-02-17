@@ -3,12 +3,13 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Dashboard from './components/Dashboard';
 import Timeline from './components/Timeline';
 import TaskEditor from './components/TaskEditor';
+import TaskView from './components/TaskView';
 import Tooltip from './components/Tooltip';
 import Snowfall from './components/Snowfall';
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ViewState, Task } from './types';
-import { getCurrentUser, logout, User } from './utils/auth'; // Import auth utilities
+import { disableGuestMode, getCurrentUser, isGuestMode, logout, User } from './utils/auth'; // Import auth utilities
 
 // Global Categories Configuration
 export const CATEGORIES = [
@@ -117,6 +118,7 @@ const generateMockTasks = (): Task[] => {
 const MainApp: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
   const [previousView, setPreviousView] = useState<ViewState>('dashboard');
+  const [viewerReturnView, setViewerReturnView] = useState<ViewState>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
@@ -129,13 +131,19 @@ const MainApp: React.FC = () => {
 
   // User Authentication State
   const [user, setUser] = useState<User | null>(null);
+  const [guestMode, setGuestMode] = useState<boolean>(() => isGuestMode());
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Load User Data
   useEffect(() => {
+    setGuestMode(isGuestMode());
     getCurrentUser().then(userData => {
       setUser(userData);
+      if (userData) {
+        disableGuestMode();
+        setGuestMode(false);
+      }
     }).catch(err => console.error('Failed to load user:', err));
   }, []);
 
@@ -152,6 +160,13 @@ const MainApp: React.FC = () => {
 
   // Handle Logout
   const handleLogout = async () => {
+    if (guestMode) {
+      disableGuestMode();
+      setGuestMode(false);
+      window.location.href = '/login';
+      return;
+    }
+
     try {
       await logout();
       // Manually clear cookie on frontend as a fallback
@@ -188,20 +203,20 @@ const MainApp: React.FC = () => {
 
   // Save tasks to API
   useEffect(() => {
-    if (isDataLoaded) {
+    if (isDataLoaded && !guestMode) {
       fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(tasks)
       }).catch(err => console.error('Failed to save tasks:', err));
     }
-  }, [tasks, isDataLoaded]);
+  }, [tasks, isDataLoaded, guestMode]);
 
   // Handle Scroll Restoration
   useLayoutEffect(() => {
     if (mainRef.current) {
-      if (currentView === 'editor') {
-        // Entering editor: reset scroll to top
+      if (currentView === 'editor' || currentView === 'viewer') {
+        // Entering detail views: reset scroll to top
         mainRef.current.scrollTop = 0;
       } else {
         // Returning to previous view: restore scroll
@@ -214,13 +229,21 @@ const MainApp: React.FC = () => {
     if (mainRef.current) {
       scrollPositionRef.current = mainRef.current.scrollTop;
     }
+    setViewerReturnView(currentView);
     setEditingTask(task);
     setPreviousView(currentView);
-    setCurrentView('editor');
+    setCurrentView('viewer');
     setShowMoreMenu(false);
   };
 
+  const handleEditTaskFromViewer = () => {
+    if (guestMode) return;
+    setPreviousView('viewer');
+    setCurrentView('editor');
+  };
+
   const handleDeleteTask = () => {
+    if (guestMode) return;
     if (!editingTask) return;
     setTasks(prev => prev.filter(t => t.id !== editingTask.id));
     setCurrentView(previousView);
@@ -240,6 +263,7 @@ const MainApp: React.FC = () => {
 
   // Real-time update handler
   const handleTaskUpdate = (updatedTask: Task) => {
+    if (guestMode) return;
     setEditingTask(updatedTask); // Keep editor in sync
     setTasks(prev => {
       const exists = prev.find(t => t.id === updatedTask.id);
@@ -255,6 +279,7 @@ const MainApp: React.FC = () => {
   };
 
   const handleCreateNew = () => {
+    if (guestMode) return;
     if (mainRef.current) {
       scrollPositionRef.current = mainRef.current.scrollTop;
     }
@@ -272,6 +297,9 @@ const MainApp: React.FC = () => {
     setCurrentView('editor');
   };
 
+  const showSearch = currentView === 'dashboard' || currentView === 'timeline';
+  const isDetailView = currentView === 'editor' || currentView === 'viewer';
+
   return (
     <div className="h-screen overflow-hidden flex flex-col font-sans text-slate-800 bg-white relative selection:bg-orange-300 selection:text-orange-900">
       {isSnowing && <Snowfall />}
@@ -279,20 +307,10 @@ const MainApp: React.FC = () => {
       {/* Sticky Header - Glass Effect */}
       <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-2xl border-b border-orange-100/40 shadow-[0_4px_30px_-10px_rgba(249,115,22,0.08)] transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center h-16 relative">
+          <div className="py-2 lg:py-0 lg:h-16 grid grid-cols-1 lg:grid-cols-[auto,minmax(0,1fr),auto] items-center gap-2 lg:gap-4">
 
             {/* Left: Branding & Back Button */}
-            <div className="flex items-center gap-4 absolute left-0">
-              {currentView === 'editor' && (
-                <button
-                  onClick={() => setCurrentView(previousView)}
-                  className="p-1 text-slate-400 hover:text-primary transition-colors rounded-full hover:bg-orange-50/50"
-                  aria-label="Go back"
-                >
-                  <span className="material-symbols-outlined">arrow_back</span>
-                </button>
-              )}
-
+            <div className="flex items-center gap-4 min-w-0">
               <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => setCurrentView('dashboard')}>
                 <div className={`h-9 w-9 rounded-xl flex items-center justify-center transition-all duration-500 ${currentView === 'editor' ? 'text-primary' : 'bg-gradient-to-br from-orange-400 to-orange-600 shadow-lg shadow-orange-500/30 group-hover:scale-110 group-hover:rotate-12'}`}>
                   <span className={`material-symbols-outlined text-xl ${currentView === 'editor' ? 'text-inherit' : 'text-white'}`}>nutrition</span>
@@ -302,8 +320,8 @@ const MainApp: React.FC = () => {
             </div>
 
             {/* Center: Search Box (Visible only on Dashboard/Timeline) */}
-            {currentView !== 'editor' && (
-              <div className="flex-1 max-w-xl mx-auto px-4">
+            <div className="min-w-0 w-full lg:px-2">
+              {showSearch && (
                 <div className="relative group w-full">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <span className="material-symbols-outlined text-slate-400 group-focus-within:text-primary transition-colors">search</span>
@@ -316,12 +334,17 @@ const MainApp: React.FC = () => {
                     placeholder="Search tasks, categories, or dates..."
                   />
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Right: Navigation & Actions */}
-            <div className="flex items-center gap-2 absolute right-0">
-              {currentView !== 'editor' ? (
+            <div className="flex items-center justify-end gap-2 flex-wrap">
+              {guestMode && (
+                <div className="px-2.5 py-1 rounded-full border border-amber-200 bg-amber-50 text-amber-700 text-[11px] font-bold uppercase tracking-wide">
+                  Guest Readonly
+                </div>
+              )}
+              {!isDetailView ? (
                 <nav className="flex items-center gap-1 bg-white/30 backdrop-blur-md border border-white/50 p-1 rounded-xl shadow-sm">
                   <Tooltip content={isSnowing ? "Stop Snow" : "Let it Snow"}>
                     <button
@@ -355,42 +378,73 @@ const MainApp: React.FC = () => {
               ) : (
                 /* Editor specific actions */
                 <div className="flex items-center gap-2">
-                  {/* Save Button */}
-                  <button
-                    onClick={() => setCurrentView(previousView)}
-                    className="flex items-center gap-1.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-5 py-2 rounded-xl font-bold text-xs shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/30 transition-all mr-2 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[14px]">check</span>
-                    Save
-                  </button>
-
-                  <button className="text-slate-400 hover:text-primary p-2 transition-colors rounded-md hover:bg-orange-50/50">
-                    <span className="material-symbols-outlined text-[20px]">star</span>
-                  </button>
-                  <div className="relative" ref={menuRef}>
+                  {currentView === 'viewer' ? (
                     <button
-                      onClick={() => setShowMoreMenu(!showMoreMenu)}
-                      className="text-slate-400 hover:text-primary p-2 transition-colors rounded-md hover:bg-orange-50/50"
+                      onClick={() => setCurrentView(viewerReturnView)}
+                      className="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-4 py-2 rounded-xl font-bold text-xs border border-slate-200"
                     >
-                      <span className="material-symbols-outlined text-[20px]">more_horiz</span>
+                      <span className="material-symbols-outlined text-[14px]">arrow_back</span>
+                      Back
                     </button>
-                    {showMoreMenu && (
-                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-20 animate-fade-in origin-top-right">
+                  ) : guestMode ? (
+                    <button
+                      onClick={() => setCurrentView(previousView)}
+                      className="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-4 py-2 rounded-xl font-bold text-xs border border-slate-200"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">visibility</span>
+                      Readonly
+                    </button>
+                  ) : (
+                    <>
+                      {/* Save Button */}
+                      <button
+                        onClick={() => setCurrentView(previousView)}
+                        className="flex items-center gap-1.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-5 py-2 rounded-xl font-bold text-xs shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/30 transition-all mr-2 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">check</span>
+                        Save
+                      </button>
+
+                      <button className="text-slate-400 hover:text-primary p-2 transition-colors rounded-md hover:bg-orange-50/50">
+                        <span className="material-symbols-outlined text-[20px]">star</span>
+                      </button>
+                      <div className="relative" ref={menuRef}>
                         <button
-                          onClick={handleDeleteTask}
-                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                          onClick={() => setShowMoreMenu(!showMoreMenu)}
+                          className="text-slate-400 hover:text-primary p-2 transition-colors rounded-md hover:bg-orange-50/50"
                         >
-                          <span className="material-symbols-outlined text-[18px]">delete</span>
-                          Delete Task
+                          <span className="material-symbols-outlined text-[20px]">more_horiz</span>
                         </button>
+                        {showMoreMenu && (
+                          <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-20 animate-fade-in origin-top-right">
+                            <button
+                              onClick={handleDeleteTask}
+                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">delete</span>
+                              Delete Task
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </>
+                  )}
                 </div>
               )}
 
               {/* User Avatar & Logout - Only Show if User is Logged In */}
-              {user && (
+              {guestMode && (
+                <div className="relative ml-2">
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-orange-50 hover:border-orange-200 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">logout</span>
+                    Exit Guest
+                  </button>
+                </div>
+              )}
+              {user && !guestMode && (
                 <div className="relative ml-2" ref={userMenuRef}>
                   <button
                     onClick={() => setShowUserMenu(!showUserMenu)}
@@ -444,16 +498,24 @@ const MainApp: React.FC = () => {
             categories={CATEGORIES}
             onTaskClick={handleTaskClick}
             onCreateNew={handleCreateNew}
+            readonly={guestMode}
             selectedCategory={timelineCategory}
             onCategorySelect={setTimelineCategory}
           />
         )}
-        {currentView === 'editor' && (
+        {currentView === 'editor' && !guestMode && (
           <TaskEditor
             task={editingTask}
             categories={CATEGORIES}
             onUpdate={handleTaskUpdate}
             onClose={() => setCurrentView(previousView)}
+          />
+        )}
+        {currentView === 'viewer' && (
+          <TaskView
+            task={editingTask}
+            canEdit={!guestMode}
+            onEdit={handleEditTaskFromViewer}
           />
         )}
       </main>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Task } from '../types';
-import { MdPreview, MdCatalog } from 'md-editor-rt';
+import MarkdownWithToc from './MarkdownWithToc';
 import 'md-editor-rt/lib/preview.css';
 
 interface TaskEditorProps {
@@ -38,7 +38,7 @@ const Dropdown: React.FC<{
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className={`inline-flex items-center justify-between gap-x-2 rounded-lg px-3 h-9 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all w-40 whitespace-nowrap overflow-hidden ${color}`}
+                className={`inline-flex items-center justify-between gap-x-2 rounded-xl px-3 h-9 text-xs font-bold text-slate-700 border border-slate-200/80 hover:bg-slate-50 hover:border-orange-200 transition-all w-40 whitespace-nowrap overflow-hidden cursor-pointer ${color}`}
             >
                 <span className="flex items-center gap-2 overflow-hidden">
                     {icon && <span className="material-symbols-outlined text-[18px] flex-shrink-0">{icon}</span>}
@@ -48,13 +48,13 @@ const Dropdown: React.FC<{
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 z-10 mt-2 w-full origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none animate-fade-in z-50">
+                <div className="absolute right-0 mt-2 w-full origin-top-right rounded-xl bg-white shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none animate-fade-in z-50">
                     <div className="py-1">
                         {options.map((option) => (
                             <button
                                 key={option}
                                 onClick={() => { onChange(option); setIsOpen(false); }}
-                                className={`block w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2 ${option === value ? 'font-bold text-primary bg-orange-50' : 'text-slate-700'}`}
+                                className={`block w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2 rounded-lg cursor-pointer transition-colors ${option === value ? 'font-bold text-primary bg-orange-50' : 'text-slate-700'}`}
                             >
                                 {getOptionIcon && getOptionIcon(option) && (
                                     <span className={`material-symbols-outlined text-[18px] ${option === value ? 'text-primary' : 'text-slate-400'}`}>{getOptionIcon(option)}</span>
@@ -109,9 +109,9 @@ const CalendarPicker: React.FC<{ onSelect: (date: Date) => void; onClose: () => 
     return (
         <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-xl shadow-xl border border-slate-200 p-4 w-72 animate-fade-in text-slate-800">
             <div className="flex justify-between items-center mb-4">
-                <button onClick={handlePrevMonth} className="p-1 hover:bg-slate-100 rounded-full"><span className="material-symbols-outlined text-sm">chevron_left</span></button>
+                <button onClick={handlePrevMonth} className="p-1 hover:bg-slate-100 rounded-full cursor-pointer transition-colors"><span className="material-symbols-outlined text-sm">chevron_left</span></button>
                 <div className="font-bold text-slate-800">{monthNames[currentMonth]} {currentYear}</div>
-                <button onClick={handleNextMonth} className="p-1 hover:bg-slate-100 rounded-full"><span className="material-symbols-outlined text-sm">chevron_right</span></button>
+                <button onClick={handleNextMonth} className="p-1 hover:bg-slate-100 rounded-full cursor-pointer transition-colors"><span className="material-symbols-outlined text-sm">chevron_right</span></button>
             </div>
             <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-slate-400 mb-2">
                 <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
@@ -121,12 +121,13 @@ const CalendarPicker: React.FC<{ onSelect: (date: Date) => void; onClose: () => 
                 {days.map(day => {
                     const date = new Date(currentYear, currentMonth, day);
                     const isDisabled = (minDate && date < minDate) || (maxDate && date > maxDate);
+                    const isToday = day === new Date().getDate() && currentMonth === new Date().getMonth() && currentYear === new Date().getFullYear();
                     return (
                         <button
                             key={day}
                             disabled={isDisabled}
                             onClick={() => !isDisabled && handleDateClick(day)}
-                            className={`h-8 w-8 rounded-full flex items-center justify-center text-sm transition-colors ${isDisabled ? 'text-slate-300 cursor-not-allowed' : 'text-slate-700 hover:bg-orange-100 hover:text-primary'}`}
+                            className={`h-8 w-8 rounded-full flex items-center justify-center text-sm transition-colors cursor-pointer ${isDisabled ? 'text-slate-300 !cursor-not-allowed' : isToday ? 'bg-primary text-white font-bold shadow-sm shadow-orange-500/30' : 'text-slate-700 hover:bg-orange-100 hover:text-primary'}`}
                         >
                             {day}
                         </button>
@@ -169,62 +170,6 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
             setFormData({ ...task });
         }
     }, [task]);
-
-    // TOC State & Logic
-    const editorId = 'task-editor-preview';
-    const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
-    const [headings, setHeadings] = useState<{ id: string; level: number; active: boolean }[]>([]);
-
-    useEffect(() => {
-        const main = document.querySelector('main');
-        setScrollElement(main || document.documentElement);
-    }, []);
-
-    // Extract headings
-    useEffect(() => {
-        if (!formData.content) return;
-        const timer = setTimeout(() => {
-            const previewElement = document.getElementById(editorId);
-            if (!previewElement) return;
-            const headingElements = previewElement.querySelectorAll('h1, h2, h3, h4, h5, h6');
-            setHeadings(Array.from(headingElements).map((el) => ({
-                id: el.id,
-                level: parseInt(el.tagName.substring(1)),
-                active: false,
-            })));
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [formData.content, editorId]);
-
-    // Scroll Spy
-    useEffect(() => {
-        if (!headings.length) return;
-        const handleScroll = () => {
-            const topOffset = 100;
-            let activeId = '';
-            // Find the last heading that is above the threshold
-            for (const heading of headings) {
-                const element = document.getElementById(heading.id);
-                if (element) {
-                    const rect = element.getBoundingClientRect();
-                    if (rect.top <= topOffset + 50) {
-                        activeId = heading.id;
-                    } else {
-                        break;
-                    }
-                }
-            }
-            setHeadings(prev => {
-                // Only update if changed
-                const isSame = prev.every(h => h.active === (h.id === activeId));
-                if (isSame) return prev;
-                return prev.map(h => ({ ...h, active: h.id === activeId }));
-            });
-        };
-        window.addEventListener('scroll', handleScroll);
-        handleScroll();
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, [headings.map(h => h.id).join(',')]);
 
     // Real-time update wrapper
     const handleChange = (field: keyof Task, value: any) => {
@@ -322,66 +267,170 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
         }
     };
 
+    const handleMdFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const content = event.target?.result as string;
+            if (content) {
+                handleChange('content', content);
+            }
+        };
+        reader.readAsText(file);
+        // Reset input so the same file can be re-uploaded
+        e.target.value = '';
+    };
+
+    const handleCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const result = event.target?.result as string;
+            if (!result) return;
+            handleChange('cover', result);
+            if (formData.coverPosition === undefined) {
+                handleChange('coverPosition', 50);
+            }
+        };
+        reader.readAsDataURL(file);
+        e.target.value = '';
+    };
+
+    const handleRemoveCover = () => {
+        handleChange('cover', undefined);
+        handleChange('coverPosition', undefined);
+    };
+
     return (
-        <div className="w-full max-w-[90%] mx-auto px-6 py-8 bg-white min-h-[calc(100vh-80px)] shadow-lg my-6 rounded-xl animate-fade-in relative text-sm">
-            <header className="mb-4">
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
-                    <input
-                        type="text"
-                        value={formData.title || ''}
-                        onChange={(e) => handleChange('title', e.target.value)}
-                        className="flex-1 bg-transparent border-none p-0 text-4xl font-bold text-slate-900 placeholder-slate-200 focus:ring-0 tracking-tight caret-primary outline-none min-w-0"
-                        placeholder="Untitled Task"
-                    />
-                </div>
+        <div className="w-full max-w-[90%] mx-auto px-6 py-8 bg-white min-h-[calc(100vh-80px)] shadow-soft my-6 rounded-2xl border border-slate-100 animate-slide-up relative text-sm">
+            {/* Hidden file input for markdown upload */}
+            <input
+                type="file"
+                ref={mdFileInputRef}
+                accept=".md,.markdown,.txt"
+                onChange={handleMdFileUpload}
+                className="hidden"
+            />
+            {/* Hidden file input for cover upload */}
+            <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                onChange={handleCoverUpload}
+                className="hidden"
+            />
+            <header className="mb-6">
+                <input
+                    type="text"
+                    value={formData.title || ''}
+                    onChange={(e) => handleChange('title', e.target.value)}
+                    className="w-full bg-transparent border-none p-0 text-4xl font-black text-slate-900 placeholder-slate-200 focus:ring-0 tracking-tight caret-primary outline-none min-w-0 mb-6"
+                    placeholder="Untitled Task"
+                />
 
-                <div className="grid grid-cols-[120px_1fr] gap-y-3 items-center text-[14px]">
-                    {/* Category */}
-                    <div className="flex items-center gap-2 text-slate-400">
-                        <span className="material-symbols-outlined text-[18px]">category</span>
-                        <span>Category</span>
+                <section className="mb-4" ref={galleryRef}>
+                    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                        <div className="relative h-44">
+                            {formData.cover ? (
+                                <>
+                                    <img
+                                        src={formData.cover}
+                                        alt="Task cover"
+                                        className="absolute inset-0 w-full h-full object-cover"
+                                        style={{ objectPosition: `center ${formData.coverPosition ?? 50}%` }}
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 via-slate-900/10 to-transparent" />
+                                </>
+                            ) : (
+                                <div className="absolute inset-0 bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+                                    <div className="text-center text-slate-400">
+                                        <span className="material-symbols-outlined text-4xl mb-1">image</span>
+                                        <p className="text-xs font-semibold uppercase tracking-wide">No Background</p>
+                                    </div>
+                                </div>
+                            )}
+                            <div className="absolute top-3 right-3 flex items-center gap-2">
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-white/90 text-slate-700 hover:bg-white transition-colors cursor-pointer"
+                                >
+                                    <span className="material-symbols-outlined text-[14px]">upload</span>
+                                    {formData.cover ? 'Change Cover' : 'Upload Cover'}
+                                </button>
+                                {formData.cover && (
+                                    <button
+                                        onClick={handleRemoveCover}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-500/90 text-white hover:bg-red-600 transition-colors cursor-pointer"
+                                    >
+                                        <span className="material-symbols-outlined text-[14px]">delete</span>
+                                        Remove
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        {formData.cover && (
+                            <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/70">
+                                <div className="flex items-center justify-between gap-3">
+                                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Background Position</span>
+                                    <span className="text-xs font-bold text-slate-700">{formData.coverPosition ?? 50}%</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min={0}
+                                    max={100}
+                                    value={formData.coverPosition ?? 50}
+                                    onChange={(e) => handleChange('coverPosition', Number(e.target.value))}
+                                    className="w-full mt-2 accent-orange-500 cursor-pointer"
+                                />
+                            </div>
+                        )}
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                        {categories.slice(0, 5).map(cat => (
-                            <button
-                                key={cat.name}
-                                onClick={() => handleChange('category', cat.name)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-xs font-bold ${formData.category === cat.name ? `${cat.bg} ${cat.text}` : 'bg-transparent text-slate-500 hover:bg-slate-100'}`}
-                            >
-                                <span className={`w-2 h-2 rounded-full ${formData.category === cat.name ? cat.text.replace('text-', 'bg-') : 'bg-slate-300'}`}></span>
-                                <span>{cat.name}</span>
-                            </button>
-                        ))}
-                        <button className="text-slate-300 hover:text-primary transition-colors">
-                            <span className="material-symbols-outlined text-[20px]">add_circle</span>
-                        </button>
+                </section>
+
+                <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                    <div className="rounded-2xl border border-orange-100/80 bg-gradient-to-br from-orange-50 via-white to-orange-50/30 px-4 py-3 shadow-[0_8px_20px_-16px_rgba(249,115,22,0.4)] transition-all hover:shadow-[0_10px_24px_-14px_rgba(249,115,22,0.45)]">
+                        <p className="text-[10px] uppercase font-black tracking-wider text-slate-400 mb-1.5 flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[14px] text-orange-400">category</span>
+                            Category
+                        </p>
+                        <p className="text-xs font-semibold text-slate-600 mb-2">Select a lane for this task</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {categories.slice(0, 5).map(cat => (
+                                <button
+                                    key={cat.name}
+                                    onClick={() => handleChange('category', cat.name)}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold cursor-pointer ${formData.category === cat.name ? `${cat.bg} ${cat.text} shadow-sm` : 'bg-white text-slate-500 border border-slate-200 hover:border-orange-200'}`}
+                                >
+                                    <span className={`w-2 h-2 rounded-full ${formData.category === cat.name ? cat.text.replace('text-', 'bg-') : 'bg-slate-300'}`}></span>
+                                    <span>{cat.name}</span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
-                    {/* Dates */}
-                    <div className="flex items-center gap-2 text-slate-400">
-                        <span className="material-symbols-outlined text-[18px]">calendar_today</span>
-                        <span>Dates</span>
-                    </div>
-                    <div className="relative" ref={calendarRef}>
-                        {/* Unified Date Box - REPLACED with separate buttons */}
-                        <div className="flex items-center gap-2">
+                    <div className="rounded-2xl border border-blue-100/80 bg-gradient-to-br from-blue-50/70 via-white to-blue-50/20 px-4 py-3 relative shadow-[0_8px_20px_-16px_rgba(59,130,246,0.35)] transition-all hover:shadow-[0_10px_24px_-14px_rgba(59,130,246,0.4)]" ref={calendarRef}>
+                        <p className="text-[10px] uppercase font-black tracking-wider text-slate-400 mb-1.5 flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[14px] text-blue-400">calendar_today</span>
+                            Date
+                        </p>
+                        <p className="text-xs font-semibold text-slate-600 mb-2">Plan your time window</p>
+                        <div className="flex items-center gap-2 flex-wrap">
                             <button
                                 onClick={() => setShowCalendar('start')}
-                                className={`px-2 py-1.5 rounded-lg text-xs font-bold transition-all ${showCalendar === 'start' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
+                                className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${showCalendar === 'start' ? 'text-blue-600 bg-blue-50' : 'text-slate-600 bg-white border border-slate-200 hover:border-orange-200'}`}
                             >
                                 {formData.dateStr || 'Start Date'}
                             </button>
-
                             <span className="text-slate-300 material-symbols-outlined text-sm">arrow_right_alt</span>
-
                             <button
                                 onClick={() => setShowCalendar('end')}
-                                className={`px-2 py-1.5 rounded-lg text-xs font-bold transition-all ${showCalendar === 'end' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
+                                className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${showCalendar === 'end' ? 'text-blue-600 bg-blue-50' : 'text-slate-600 bg-white border border-slate-200 hover:border-orange-200'}`}
                             >
                                 {formData.endDateStr || 'End Date'}
                             </button>
                         </div>
-
                         {showCalendar && (
                             <CalendarPicker
                                 onSelect={handleDateSelect}
@@ -391,29 +440,12 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
                         )}
                     </div>
 
-                    {/* Priority */}
-                    <div className="flex items-center gap-2 text-slate-400">
-                        <span className="material-symbols-outlined text-[18px]">flag</span>
-                        <span>Priority</span>
-                    </div>
-                    <div>
-                        <Dropdown
-                            label="Priority"
-                            value={formData.priority || 'Medium'}
-                            options={['High', 'Medium', 'Low']}
-                            onChange={(val) => handleChange('priority', val)}
-                            color={getPriorityColor(formData.priority || 'Medium')}
-                            icon={getPriorityIcon(formData.priority || 'Medium')}
-                            getOptionIcon={getPriorityIcon}
-                        />
-                    </div>
-
-                    {/* Status */}
-                    <div className="flex items-center gap-2 text-slate-400">
-                        <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                        <span>Status</span>
-                    </div>
-                    <div>
+                    <div className="rounded-2xl border border-emerald-100/80 bg-gradient-to-br from-emerald-50/70 via-white to-emerald-50/20 px-4 py-3 shadow-[0_8px_20px_-16px_rgba(16,185,129,0.35)] transition-all hover:shadow-[0_10px_24px_-14px_rgba(16,185,129,0.4)]">
+                        <p className="text-[10px] uppercase font-black tracking-wider text-slate-400 mb-1.5 flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[14px] text-emerald-400">check_circle</span>
+                            Status
+                        </p>
+                        <p className="text-xs font-semibold text-slate-600 mb-2">Track current progress</p>
                         <Dropdown
                             label="Status"
                             value={formData.status || 'ToDo'}
@@ -425,26 +457,41 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
                         />
                     </div>
 
-                    {/* Short Description Field */}
-                    <div className="flex items-center gap-2 text-slate-400 pt-2 self-start">
-                        <span className="material-symbols-outlined text-[18px]">short_text</span>
-                        <span>Summary</span>
+                    <div className="rounded-2xl border border-red-100/80 bg-gradient-to-br from-red-50/70 via-white to-red-50/20 px-4 py-3 shadow-[0_8px_20px_-16px_rgba(239,68,68,0.35)] transition-all hover:shadow-[0_10px_24px_-14px_rgba(239,68,68,0.4)]">
+                        <p className="text-[10px] uppercase font-black tracking-wider text-slate-400 mb-1.5 flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[14px] text-red-400">flag</span>
+                            Priority
+                        </p>
+                        <p className="text-xs font-semibold text-slate-600 mb-2">Set urgency level</p>
+                        <Dropdown
+                            label="Priority"
+                            value={formData.priority || 'Medium'}
+                            options={['High', 'Medium', 'Low']}
+                            onChange={(val) => handleChange('priority', val)}
+                            color={getPriorityColor(formData.priority || 'Medium')}
+                            icon={getPriorityIcon(formData.priority || 'Medium')}
+                            getOptionIcon={getPriorityIcon}
+                        />
                     </div>
-                    <div className="pt-1">
+                </section>
+
+                <section className="mb-2">
+                    <h3 className="text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Summary</h3>
+                    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all focus-within:border-orange-300 focus-within:bg-orange-50/20 focus-within:shadow-[0_0_0_3px_rgba(251,146,60,0.12)]">
                         <textarea
                             ref={summaryRef}
                             value={formData.description || ''}
                             onChange={(e) => handleChange('description', e.target.value)}
-                            className="w-full bg-transparent p-0 text-sm text-slate-700 placeholder-slate-400 focus:outline-none transition-all font-medium border-none resize-none [&::-webkit-scrollbar]:hidden overflow-hidden"
+                            className="summary-input w-full bg-transparent p-0 text-sm text-slate-700 placeholder-slate-400 transition-all font-medium border-none resize-none leading-relaxed [&::-webkit-scrollbar]:hidden overflow-hidden"
                             style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}
                             placeholder="Short summary for the timeline card..."
                             rows={1}
                         />
                     </div>
-                </div>
+                </section>
             </header>
 
-            <hr className="border-slate-100 mb-6" />
+            <hr className="border-slate-100/70 mb-6" />
 
             {/* Content Area - Markdown Upload & Preview */}
             {formData.content ? (
@@ -458,7 +505,7 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => mdFileInputRef.current?.click()}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-primary hover:bg-orange-50 rounded-lg transition-all"
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-primary hover:bg-orange-50 rounded-lg transition-all cursor-pointer"
                             >
                                 <span className="material-symbols-outlined text-[16px]">upload_file</span>
                                 Re-upload
@@ -466,135 +513,12 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
                         </div>
                     </div>
                     {/* Markdown Preview with TOC Layout */}
-                    <div className="flex relative items-start h-full min-h-[500px]">
-                        <div className={`flex-1 overflow-hidden min-w-0 transition-all duration-300 pr-12`}>
-                            <MdPreview
-                                editorId={editorId}
-                                modelValue={formData.content}
-                                previewTheme="github"
-                                style={{ minHeight: '300px', padding: '16px', fontSize: '14px' }}
-                            />
-                            {/* Style to prevent header occlusion on scroll */}
-                            <style>{`
-                                /* Apply scroll-margin to all headings in the preview */
-                                #${editorId} h1, 
-                                #${editorId} h2, 
-                                #${editorId} h3, 
-                                #${editorId} h4, 
-                                #${editorId} h5, 
-                                #${editorId} h6 {
-                                    scroll-margin-top: 120px !important;
-                                    transition: background-color 0.3s ease;
-                                }
-                                
-                                /* Also apply to any heading with an id (TOC targets) */
-                                h1[id], h2[id], h3[id], h4[id], h5[id], h6[id] {
-                                    scroll-margin-top: 120px !important;
-                                }
-                                
-                                /* CRITICAL: Apply scroll-padding to the main container which is the actual scroll element */
-                                main {
-                                    scroll-padding-top: 120px;
-                                }
-                                
-                                /* Heading highlight animation */
-                                @keyframes heading-highlight {
-                                    0% { background-color: rgba(147, 197, 253, 0.4); }
-                                    50% { background-color: rgba(147, 197, 253, 0.6); }
-                                    100% { background-color: transparent; }
-                                }
-                                
-                                .heading-highlight-active {
-                                    animation: heading-highlight 1.5s ease-out;
-                                    border-radius: 4px;
-                                }
-                            `}</style>
-                        </div>
-
-
-                        {/* TOC Hover Interaction - Absolute + Sticky */}
-                        <div className="absolute -right-6 top-0 h-full w-12 z-50 pointer-events-none">
-                            <div className="sticky top-24 pointer-events-auto group w-12 hover:w-64 transition-all duration-300 min-h-[300px] flex justify-end">
-
-                                {/* Visual Skeleton (Default View) */}
-                                <div className="absolute top-2 right-0 w-12 flex flex-col items-end pr-3 gap-3 opacity-100 group-hover:opacity-0 transition-opacity duration-200 delay-75 pointer-events-none">
-                                    {headings.map((heading, index) => {
-                                        let widthClass = 'w-4';
-                                        if (heading.level === 1) widthClass = 'w-6';
-                                        if (heading.level === 2) widthClass = 'w-5';
-                                        if (heading.level >= 3) widthClass = 'w-4';
-
-                                        return (
-                                            <div
-                                                key={heading.id + index}
-                                                className={`${widthClass} h-1 rounded-full transition-colors duration-300 ${heading.active ? 'bg-slate-600' : 'bg-slate-200'}`}
-                                            ></div>
-                                        );
-                                    })}
-                                    {headings.length === 0 && (
-                                        <>
-                                            <div className="w-6 h-1 bg-slate-200 rounded-full"></div>
-                                            <div className="w-4 h-1 bg-slate-200 rounded-full"></div>
-                                            <div className="w-5 h-1 bg-slate-200 rounded-full"></div>
-                                        </>
-                                    )}
-                                </div>
-
-                                {/* Expanded TOC Popup */}
-                                <div className="absolute top-0 right-full mr-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 p-4 max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar 
-                                                opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 origin-top-right z-10">
-                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 pb-2 border-b border-slate-200">
-                                        Contents
-                                    </div>
-                                    <MdCatalog
-                                        editorId={editorId}
-                                        scrollElement={scrollElement || document.documentElement}
-                                        scrollElementOffsetTop={120}
-                                        theme="light"
-                                        onClick={(e, tocItem) => {
-                                            // 检查目标标题是否已经完整可见且不被header遮挡
-                                            // ID格式确认:直接使用标题文本,无前缀
-                                            const targetElement = document.getElementById(tocItem.text);
-
-                                            if (targetElement) {
-                                                const rect = targetElement.getBoundingClientRect();
-                                                const headerHeight = 65; // 固定header高度
-                                                const clearance = 55; // 期望的间隔
-                                                const minTop = headerHeight + clearance;
-
-                                                // 检查标题是否完全在可视区域内
-                                                const isFullyVisible =
-                                                    rect.top >= minTop &&
-                                                    rect.bottom <= window.innerHeight;
-
-                                                if (isFullyVisible) {
-                                                    // 标题已经完整可见,阻止滚动
-                                                    e.preventDefault();
-                                                }
-                                                
-                                                // 添加高亮动画效果
-                                                targetElement.classList.remove('heading-highlight-active');
-                                                // 强制重排以重新触发动画
-                                                void targetElement.offsetWidth;
-                                                targetElement.classList.add('heading-highlight-active');
-                                                
-                                                // 动画结束后移除类
-                                                setTimeout(() => {
-                                                    targetElement.classList.remove('heading-highlight-active');
-                                                }, 1500);
-                                            }
-                                        }}
-                                        className="text-sm text-slate-600 [&_.md-editor-catalog-link]:block [&_.md-editor-catalog-link]:py-1 [&_.md-editor-catalog-link]:px-2 [&_.md-editor-catalog-link]:rounded-md [&_.md-editor-catalog-link]:truncate [&_.md-editor-catalog-link:hover]:bg-slate-200/50 [&_.md-editor-catalog-link-active]:text-primary [&_.md-editor-catalog-link-active]:bg-orange-50 [&_.md-editor-catalog-link-active]:font-semibold cursor-pointer"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <MarkdownWithToc content={formData.content || ''} editorId="task-editor-preview" />
                 </div>
             ) : (
                 <div
                     onClick={() => mdFileInputRef.current?.click()}
-                    className="border-2 border-dashed border-slate-200 rounded-xl min-h-[300px] flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-orange-50/50 transition-all group"
+                    className="border-2 border-dashed border-slate-200 rounded-2xl min-h-[300px] flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-orange-50/50 transition-all group"
                 >
                     <span className="material-symbols-outlined text-5xl text-slate-300 group-hover:text-primary transition-colors mb-4">markdown</span>
                     <h3 className="text-lg font-bold text-slate-600 group-hover:text-primary transition-colors">Upload Markdown</h3>

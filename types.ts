@@ -1,4 +1,4 @@
-export type ViewState = 'dashboard' | 'timeline' | 'editor';
+export type ViewState = 'dashboard' | 'timeline' | 'editor' | 'viewer';
 
 export interface StatCardProps {
   title: string;
