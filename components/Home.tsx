@@ -214,47 +214,56 @@ const Home: React.FC<HomeProps> = ({ tasks, categories, onTaskClick }) => {
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{stats.done} done</span>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-          <div className="grid grid-cols-[2fr_1fr_1fr_1fr_80px] px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-400 border-b border-slate-100 bg-slate-50/70">
-            <span>Title</span>
-            <span>Category</span>
-            <span>Date</span>
-            <span>Priority</span>
-            <span className="text-center">Fav</span>
+          <div className="grid grid-cols-[2fr_1fr_1fr_1fr] px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-400 border-b border-slate-100 bg-slate-50/70">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[13px]">title</span>
+              Title
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[13px]">category</span>
+              Category
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[13px]">calendar_today</span>
+              Date
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[13px]">flag</span>
+              Priority
+            </span>
           </div>
           {completedTasks.length === 0 ? (
             <div className="px-4 py-6 text-sm text-slate-500">No completed tasks yet.</div>
-          ) : completedTasks.map(task => (
-            <button
-              key={task.id}
-              onClick={() => onTaskClick(task)}
-              className="w-full grid grid-cols-[2fr_1fr_1fr_1fr_80px] px-4 py-3 text-sm text-slate-700 border-b border-slate-100 last:border-b-0 hover:bg-orange-50/30 transition-colors text-left cursor-pointer items-center"
-            >
-              <span className="truncate font-semibold text-slate-800">{task.title}</span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[13px] text-slate-400">label</span>
-                <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-600">
-                  {task.category}
+          ) : completedTasks.map(task => {
+            const category = categories.find(c => c.name === task.category);
+            return (
+              <button
+                key={task.id}
+                onClick={() => onTaskClick(task)}
+                className="w-full grid grid-cols-[2fr_1fr_1fr_1fr] px-4 py-3 text-sm text-slate-700 border-b border-slate-100 last:border-b-0 hover:bg-orange-50/30 transition-colors text-left cursor-pointer items-center"
+              >
+                <span className="truncate font-semibold text-slate-800">{task.title}</span>
+                <span className="inline-flex items-center">
+                  <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${category?.bg || 'bg-slate-100'} ${category?.text || 'text-slate-600'}`}>
+                    {task.category}
+                  </span>
                 </span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
-                <span className="material-symbols-outlined text-[14px] text-slate-400">event</span>
-                <span className="truncate">{task.dateStr}{task.endDateStr ? ` - ${task.endDateStr}` : ''}</span>
-              </span>
-              <span>
-                <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${task.priority === 'High'
-                    ? 'bg-red-50 text-red-600'
-                    : task.priority === 'Medium'
-                      ? 'bg-amber-50 text-amber-600'
-                      : 'bg-slate-100 text-slate-600'
-                  }`}>
-                  {task.priority || 'Low'}
+                <span className="inline-flex items-center text-[11px] font-medium text-slate-500">
+                  <span className="truncate">{task.dateStr}{task.endDateStr ? ` - ${task.endDateStr}` : ''}</span>
                 </span>
-              </span>
-              <span className="text-center">
-                {task.favorite ? <span className="material-symbols-outlined text-[16px] text-amber-500">star</span> : <span className="material-symbols-outlined text-[16px] text-slate-300">star</span>}
-              </span>
-            </button>
-          ))}
+                <span>
+                  <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${task.priority === 'High'
+                      ? 'bg-red-50 text-red-600'
+                      : task.priority === 'Medium'
+                        ? 'bg-amber-50 text-amber-600'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}>
+                    {task.priority || 'Low'}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       </section>
 

@@ -317,6 +317,16 @@ const MainApp: React.FC = () => {
     setShowMoreMenu(false);
   };
 
+  const navigateToView = (nextView: ViewState) => {
+    if (currentView === 'editor' && isCreatingNewTask && nextView !== 'editor') {
+      // Drop unsaved draft safely: it has never been committed to tasks.
+      setEditingTask(null);
+      setIsCreatingNewTask(false);
+      setShowMoreMenu(false);
+    }
+    setCurrentView(nextView);
+  };
+
   // Close menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -331,6 +341,11 @@ const MainApp: React.FC = () => {
   // Real-time update handler
   const handleTaskUpdate = (updatedTask: Task) => {
     if (guestMode) return;
+    if (isCreatingNewTask) {
+      // For new tasks, keep updates local until explicit save.
+      setEditingTask(updatedTask);
+      return;
+    }
     setTasks(prev => {
       const exists = prev.find(t => t.id === updatedTask.id);
 
@@ -383,12 +398,26 @@ const MainApp: React.FC = () => {
 
   const handleCancelCreate = () => {
     if (!isCreatingNewTask) return;
-    if (editingTask?.id) {
-      setTasks(prev => prev.filter(t => t.id !== editingTask.id));
-    }
     setEditingTask(null);
     setIsCreatingNewTask(false);
     setShowMoreMenu(false);
+    setCurrentView(previousView);
+  };
+
+  const handleSaveTask = () => {
+    if (currentView !== 'editor') return;
+
+    if (isCreatingNewTask && editingTask) {
+      setTasks(prev => {
+        const exists = prev.find(t => t.id === editingTask.id);
+        const nextTasks = exists
+          ? prev.map(t => (t.id === editingTask.id ? editingTask : t))
+          : [...prev, editingTask];
+        return nextTasks.sort((a, b) => new Date(a.dateStr).getTime() - new Date(b.dateStr).getTime());
+      });
+      setIsCreatingNewTask(false);
+    }
+
     setCurrentView(previousView);
   };
 
@@ -442,7 +471,7 @@ const MainApp: React.FC = () => {
 
               {/* Left: Branding */}
               <div className="flex items-center gap-4 min-w-0">
-                <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => setCurrentView('home')}>
+                <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => navigateToView('home')}>
                   <div className={`h-9 w-9 rounded-xl flex items-center justify-center transition-all duration-500 ${currentView === 'editor' ? 'text-primary' : 'bg-gradient-to-br from-orange-400 to-orange-600 shadow-lg shadow-orange-500/30 group-hover:scale-110 group-hover:rotate-12'}`}>
                     <span className={`material-symbols-outlined text-xl ${currentView === 'editor' ? 'text-inherit' : 'text-white'}`}>nutrition</span>
                   </div>
@@ -472,7 +501,7 @@ const MainApp: React.FC = () => {
 
                     <Tooltip content="Home">
                       <button
-                        onClick={() => setCurrentView('home')}
+                        onClick={() => navigateToView('home')}
                         className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${currentView === 'home' ? 'bg-orange-100/80 text-orange-600 shadow-inner' : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50/50'}`}
                       >
                         <span className="material-symbols-outlined text-[20px]">home</span>
@@ -483,7 +512,7 @@ const MainApp: React.FC = () => {
 
                     <Tooltip content="Dashboard">
                       <button
-                        onClick={() => setCurrentView('dashboard')}
+                        onClick={() => navigateToView('dashboard')}
                         className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${currentView === 'dashboard' ? 'bg-orange-100/80 text-orange-600 shadow-inner' : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50/50'}`}
                       >
                         <span className="material-symbols-outlined text-[20px]">dashboard</span>
@@ -492,7 +521,7 @@ const MainApp: React.FC = () => {
 
                     <Tooltip content="Timeline">
                       <button
-                        onClick={() => setCurrentView('timeline')}
+                        onClick={() => navigateToView('timeline')}
                         className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${currentView === 'timeline' ? 'bg-orange-100/80 text-orange-600 shadow-inner' : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50/50'}`}
                       >
                         <span className="material-symbols-outlined text-[20px]">calendar_month</span>
@@ -515,7 +544,7 @@ const MainApp: React.FC = () => {
                           <>
                             <button
                               onClick={handleToggleFavorite}
-                              className={`p-2 rounded-md transition-colors ${editingTask?.favorite ? 'text-amber-500 bg-amber-50' : 'text-slate-400 hover:text-amber-500 hover:bg-amber-50/50'}`}
+                              className={`p-2 rounded-md transition-colors ${editingTask?.favorite ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}`}
                               title={editingTask?.favorite ? 'Unfavorite' : 'Favorite'}
                             >
                               <span className="material-symbols-outlined text-[20px]">star</span>
@@ -565,7 +594,7 @@ const MainApp: React.FC = () => {
                         <button
                           onClick={() => {
                             setIsCreatingNewTask(false);
-                            setCurrentView(previousView);
+                            handleSaveTask();
                           }}
                           className="flex items-center gap-1.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-5 py-2 rounded-xl font-bold text-xs shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/30 transition-all mr-2 cursor-pointer"
                         >
@@ -576,7 +605,7 @@ const MainApp: React.FC = () => {
                           <>
                             <button
                               onClick={handleToggleFavorite}
-                              className={`p-2 rounded-md transition-colors ${editingTask?.favorite ? 'text-amber-500 bg-amber-50' : 'text-slate-400 hover:text-amber-500 hover:bg-amber-50/50'}`}
+                              className={`p-2 rounded-md transition-colors ${editingTask?.favorite ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}`}
                               title={editingTask?.favorite ? 'Unfavorite' : 'Favorite'}
                             >
                               <span className="material-symbols-outlined text-[20px]">star</span>
@@ -695,7 +724,7 @@ const MainApp: React.FC = () => {
             task={editingTask}
             categories={CATEGORIES}
             onUpdate={handleTaskUpdate}
-            onClose={() => setCurrentView(previousView)}
+            onClose={() => navigateToView(previousView)}
           />
         )}
         {currentView === 'viewer' && (
