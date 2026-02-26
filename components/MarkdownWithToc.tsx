@@ -125,6 +125,28 @@ const MarkdownWithToc: React.FC<MarkdownWithTocProps> = ({
             border-radius: 4px !important;
             font-size: 0.9em !important;
           }
+
+          /* Restore list styles overridden by Tailwind preflight */
+          #${editorId} ul {
+            list-style-type: disc !important;
+            padding-left: 2rem !important;
+            margin-bottom: 1em !important;
+          }
+          #${editorId} ul ul {
+            list-style-type: circle !important;
+          }
+          #${editorId} ul ul ul {
+            list-style-type: square !important;
+          }
+          #${editorId} ol {
+            list-style-type: decimal !important;
+            padding-left: 2rem !important;
+            margin-bottom: 1em !important;
+          }
+          #${editorId} li {
+            margin-bottom: 0.25em !important;
+            display: list-item !important;
+          }
         `}</style>
       </div>
 

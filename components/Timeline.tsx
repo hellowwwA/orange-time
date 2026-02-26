@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Task } from '../types';
+import { DEFAULT_COVERS } from '../App';
 
 interface TimelineProps {
   tasks: Task[];
   categories: Array<{ name: string; color: string; border: string; text: string; bg: string }>;
   onTaskClick: (task: Task) => void;
-  onCreateNew: () => void;
   readonly?: boolean;
   selectedCategory: string;
   onCategorySelect: (category: string) => void;
@@ -13,7 +13,7 @@ interface TimelineProps {
 
 type ViewMode = 'Day' | 'Month';
 
-const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, onCreateNew, readonly = false, selectedCategory, onCategorySelect }) => {
+const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, readonly = false, selectedCategory, onCategorySelect }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('Day');
 
   const handleCategoryClick = (category: string) => {
@@ -22,6 +22,7 @@ const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, onC
 
   const filteredTasks = useMemo(() => {
     if (selectedCategory === 'All Categories') return tasks;
+    if (selectedCategory === 'Favorites') return tasks.filter(t => t.favorite);
     return tasks.filter(t => t.category === selectedCategory);
   }, [tasks, selectedCategory]);
 
@@ -52,12 +53,12 @@ const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, onC
 
   const getIconForCategory = (catName: string) => {
     switch (catName) {
-      case 'Personal': return 'image';
-      case 'Learning': return 'auto_stories';
-      case 'Health': return 'medical_services';
-      case 'Urgent': return 'priority_high';
-      case 'Design': return 'palette';
-      case 'Product': return 'rocket_launch';
+      case 'Personal': return 'person';
+      case 'Learning': return 'school';
+      case 'Health': return 'health_and_safety';
+      case 'Urgent': return 'notification_important';
+      case 'Design': return 'brush';
+      case 'Product': return 'inventory_2';
       default: return 'task';
     }
   };
@@ -88,15 +89,6 @@ const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, onC
               </button>
             ))}
           </div>
-          {!readonly && (
-            <button
-              onClick={onCreateNew}
-              className="flex items-center gap-1.5 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-xl font-bold text-xs transition-all shadow-sm shadow-orange-500/20 hover:shadow-md hover:shadow-orange-500/30 cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[16px]">add</span>
-              New Task
-            </button>
-          )}
         </div>
       </div>
 
@@ -108,8 +100,17 @@ const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, onC
             ? 'bg-primary text-white shadow-md shadow-orange-500/20'
             : 'bg-white text-slate-500 border border-slate-200/80 hover:bg-orange-50 hover:text-primary hover:border-orange-200'}`}
         >
-          <span className={`material-symbols-outlined text-[16px]`}>grid_view</span>
+          <span className={`material-symbols-outlined text-[16px] ${selectedCategory === 'All Categories' ? 'text-white' : 'text-primary'}`}>apps</span>
           All Categories
+        </button>
+        <button
+          onClick={() => handleCategoryClick('Favorites')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${selectedCategory === 'Favorites'
+            ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
+            : 'bg-white text-slate-500 border border-slate-200/80 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200'}`}
+        >
+          <span className={`material-symbols-outlined text-[16px] ${selectedCategory === 'Favorites' ? 'text-white' : 'text-amber-500'}`}>grade</span>
+          Favorites
         </button>
         {displayCategories.map((cat) => (
           <button
@@ -140,10 +141,7 @@ const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, onC
               <h3 className="text-lg font-bold text-slate-400 mb-1">No tasks found</h3>
               <p className="text-sm text-slate-300 mb-4">Create a new task to get started</p>
               {!readonly && (
-                <button
-                  onClick={onCreateNew}
-                  className="text-sm font-bold text-primary hover:underline cursor-pointer"
-                >+ Add your first task</button>
+                <p className="text-xs font-medium text-slate-400">Use the floating + button to create your first task</p>
               )}
             </div>
           ) : (
@@ -184,17 +182,21 @@ const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, onC
                           <div className={`absolute left-0 top-0 bottom-0 w-1 ${styles.color} rounded-l-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
 
                           {/* Cover Image Background */}
-                          {task.cover && (
-                            <div className="absolute inset-0 z-0">
-                              <img
-                                src={task.cover}
-                                className="w-full h-full object-cover opacity-25 transition-all duration-700 group-hover:scale-105 group-hover:opacity-30"
-                                alt="cover"
-                                style={{ objectPosition: `center ${task.coverPosition || 50}%` }}
-                              />
-                              <div className="absolute inset-0 bg-gradient-to-t from-white/95 via-white/80 to-white/40" />
-                            </div>
-                          )}
+                          {(() => {
+                            const displayCover = task.cover || DEFAULT_COVERS[task.category] || DEFAULT_COVERS['DEFAULT'];
+                            if (!displayCover) return null;
+                            return (
+                              <div className="absolute inset-0 z-0">
+                                <img
+                                  src={displayCover}
+                                  className="w-full h-full object-cover opacity-25 transition-all duration-700 group-hover:scale-105 group-hover:opacity-30"
+                                  alt="cover"
+                                  style={{ objectPosition: `center ${task.coverPosition || 50}%` }}
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-white/95 via-white/80 to-white/40" />
+                              </div>
+                            );
+                          })()}
 
                           <div className="p-5 pr-14 relative z-10">
                             {/* Top Row: Date & Priority */}

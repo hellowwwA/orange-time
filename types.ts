@@ -1,4 +1,4 @@
-export type ViewState = 'dashboard' | 'timeline' | 'editor' | 'viewer';
+export type ViewState = 'home' | 'dashboard' | 'timeline' | 'editor' | 'viewer';
 
 export interface StatCardProps {
   title: string;
@@ -20,7 +20,9 @@ export interface Task {
   description: string;
   status: 'Done' | 'In Progress' | 'ToDo';
   priority?: 'High' | 'Medium' | 'Low';
+  hasContent?: boolean; // Flag to indicate if external markdown file is associated
   content?: string; // HTML or Markdown content for the editor
   cover?: string; // Cover image URL
   coverPosition?: number; // 0-100% vertical position
+  favorite?: boolean;
 }

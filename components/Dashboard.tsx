@@ -76,40 +76,19 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, categories }) => {
     },
   ];
 
-  // Current date greeting
-  const now = new Date();
-  const hours = now.getHours();
-  const greeting = hours < 12 ? 'Good Morning' : hours < 18 ? 'Good Afternoon' : 'Good Evening';
-  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-      {/* ─── Welcome Banner ─── */}
-      <div className="relative overflow-hidden rounded-2xl p-8 mb-8 animate-slide-up" style={{ background: 'linear-gradient(135deg, #f97316, #fb923c, #f59e0b)' }}>
-        {/* Decorative circles */}
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full"></div>
-        <div className="absolute -bottom-6 -right-20 w-56 h-56 bg-white/5 rounded-full"></div>
-        <div className="absolute top-4 right-32 w-16 h-16 bg-white/10 rounded-full"></div>
-
-        <div className="relative z-10">
-          <p className="text-orange-100 text-sm font-medium mb-1">{dateStr}</p>
-          <h2 className="text-3xl font-black text-white tracking-tight mb-2">{greeting} 👋</h2>
-          <p className="text-orange-100/80 text-sm max-w-md">
-            You have <span className="text-white font-bold">{statusCounts.todo} tasks</span> to complete and <span className="text-white font-bold">{statusCounts.inProgress} in progress</span>. Keep up the great work!
-          </p>
-        </div>
-      </div>
-
       {/* ─── Breadcrumb ─── */}
-      <div className="mb-8 animate-slide-up stagger-1">
+      <div className="mb-4 animate-slide-up stagger-1">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-2 uppercase tracking-widest">
           <span>Tasks</span>
           <span className="text-slate-300">/</span>
           <span className="text-primary">Status Dashboard</span>
         </div>
-        <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Status Overview</h2>
+        <h2 className="text-3xl font-bold text-slate-900 tracking-tight mb-8">Status Overview</h2>
       </div>
+
 
       {/* ─── Charts Section ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
@@ -209,6 +188,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, categories }) => {
           </div>
         ))}
       </div>
+
     </div>
   );
 };

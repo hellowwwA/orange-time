@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Task } from '../types';
+import { DEFAULT_COVERS } from '../App';
 import MarkdownWithToc from './MarkdownWithToc';
 
 interface TaskViewProps {
@@ -9,6 +10,30 @@ interface TaskViewProps {
 }
 
 const TaskView: React.FC<TaskViewProps> = ({ task, canEdit = false, onEdit }) => {
+  const [localContent, setLocalContent] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (task) {
+      if (task.content) {
+        setLocalContent(task.content);
+      } else if (task.hasContent) {
+        setIsLoading(true);
+        fetch(`/api/tasks/${task.id}/content`)
+          .then(res => res.text())
+          .then(text => setLocalContent(text))
+          .catch(err => {
+            console.error('Failed to load markdown content:', err);
+            setLocalContent('');
+          })
+          .finally(() => setIsLoading(false));
+      } else {
+        setLocalContent('');
+      }
+    } else {
+      setLocalContent('');
+    }
+  }, [task]);
   if (!task) {
     return (
       <div className="w-full max-w-[90%] mx-auto px-6 py-10 bg-white min-h-[calc(100vh-80px)] shadow-soft my-6 rounded-2xl border border-slate-100">
@@ -20,32 +45,37 @@ const TaskView: React.FC<TaskViewProps> = ({ task, canEdit = false, onEdit }) =>
   return (
     <div className="w-full max-w-[90%] mx-auto px-6 py-8 bg-white min-h-[calc(100vh-80px)] shadow-soft my-6 rounded-2xl border border-slate-100 animate-slide-up relative text-sm">
       <header className="mb-6">
-        <div className="relative flex items-start justify-between gap-4 p-4 rounded-2xl border border-orange-100/70 bg-gradient-to-br from-orange-50 via-white to-amber-50/40 shadow-[0_8px_24px_-18px_rgba(249,115,22,0.45)] overflow-hidden">
-          {task.cover && (
-            <>
-              <img
-                src={task.cover}
-                alt="Task cover"
-                className="absolute inset-0 w-full h-full object-cover"
-                style={{ objectPosition: `center ${task.coverPosition ?? 50}%` }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-900/55 via-slate-900/40 to-slate-900/15" />
-            </>
-          )}
-          <div className="relative z-10">
-            <p className={`text-[10px] uppercase font-black tracking-widest mb-1 ${task.cover ? 'text-orange-200' : 'text-orange-400'}`}>Task Detail</p>
-            <h2 className={`text-4xl font-black tracking-tight break-words ${task.cover ? 'text-white' : 'text-slate-900'}`}>{task.title}</h2>
-          </div>
-          {canEdit && (
-            <button
-              onClick={onEdit}
-              className={`relative z-10 shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all cursor-pointer ${task.cover ? 'bg-white/90 hover:bg-white text-slate-800 shadow-slate-900/10' : 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-orange-500/25'}`}
-            >
-              <span className="material-symbols-outlined text-[14px]">edit</span>
-              Edit Task
-            </button>
-          )}
-        </div>
+        {(() => {
+          const displayCover = task.cover || DEFAULT_COVERS[task.category] || DEFAULT_COVERS['DEFAULT'];
+          return (
+            <div className="relative flex items-start justify-between gap-4 p-4 rounded-2xl border border-orange-100/70 bg-gradient-to-br from-orange-50 via-white to-amber-50/40 shadow-[0_8px_24px_-18px_rgba(249,115,22,0.45)] overflow-hidden">
+              {displayCover && (
+                <>
+                  <img
+                    src={displayCover}
+                    alt="Task cover"
+                    className="absolute inset-0 w-full h-full object-cover"
+                    style={{ objectPosition: `center ${task.coverPosition ?? 50}%` }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-900/55 via-slate-900/40 to-slate-900/15" />
+                </>
+              )}
+              <div className="relative z-10">
+                <p className={`text-[10px] uppercase font-black tracking-widest mb-1 ${displayCover ? 'text-orange-200' : 'text-orange-400'}`}>Task Detail</p>
+                <h2 className={`text-4xl font-black tracking-tight break-words ${displayCover ? 'text-white' : 'text-slate-900'}`}>{task.title}</h2>
+              </div>
+              {canEdit && (
+                <button
+                  onClick={onEdit}
+                  className={`relative z-10 shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all cursor-pointer ${displayCover ? 'bg-white/90 hover:bg-white text-slate-800 shadow-slate-900/10' : 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-orange-500/25'}`}
+                >
+                  <span className="material-symbols-outlined text-[14px]">edit</span>
+                  Edit Task
+                </button>
+              )}
+            </div>
+          );
+        })()}
       </header>
 
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
@@ -95,11 +125,18 @@ const TaskView: React.FC<TaskViewProps> = ({ task, canEdit = false, onEdit }) =>
         </section>
       )}
 
-      {task.content && (
+      {(localContent || isLoading) && (
         <section>
           <h3 className="text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Content</h3>
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-4">
-            <MarkdownWithToc content={task.content} editorId="task-view-preview" minHeightClassName="min-h-[300px]" />
+            {isLoading ? (
+              <div className="min-h-[300px] flex items-center justify-center text-slate-400 border border-slate-100 rounded-xl bg-slate-50">
+                <span className="material-symbols-outlined animate-spin text-3xl">refresh</span>
+                <span className="ml-2 font-medium">Loading content...</span>
+              </div>
+            ) : (
+              <MarkdownWithToc content={localContent} editorId="task-view-preview" minHeightClassName="min-h-[300px]" />
+            )}
           </div>
         </section>
       )}

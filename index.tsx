@@ -2,6 +2,15 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
+import { config } from 'md-editor-rt';
+import asidePlugin from './utils/asidePlugin';
+
+config({
+  markdownItConfig(md) {
+    asidePlugin(md);
+  }
+});
+
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

@@ -157,6 +157,9 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
     const galleryRef = useRef<HTMLDivElement>(null);
     const summaryRef = useRef<HTMLTextAreaElement>(null);
 
+    const [isLoadingMarkdown, setIsLoadingMarkdown] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+
     // Auto-resize summary textarea
     useEffect(() => {
         if (summaryRef.current) {
@@ -168,6 +171,16 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
     useEffect(() => {
         if (task) {
             setFormData({ ...task });
+            if (!task.content && task.hasContent) {
+                setIsLoadingMarkdown(true);
+                fetch(`/api/tasks/${task.id}/content`)
+                    .then(res => res.text())
+                    .then(text => {
+                        setFormData(prev => ({ ...prev, content: text }));
+                    })
+                    .catch(err => console.error('Failed to load markdown content:', err))
+                    .finally(() => setIsLoadingMarkdown(false));
+            }
         }
     }, [task]);
 
@@ -267,19 +280,151 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
         }
     };
 
-    const handleMdFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleMdFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const content = event.target?.result as string;
+        setIsLoadingMarkdown(true);
+        try {
+            const content = await file.text();
             if (content) {
                 handleChange('content', content);
             }
+        } catch (err) {
+            console.error('Failed to read markdown file:', err);
+        } finally {
+            setIsLoadingMarkdown(false);
+            e.target.value = '';
+        }
+    };
+
+    // --- Drag and Drop Logic ---
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        const items = e.dataTransfer.items;
+        if (!items || items.length === 0) return;
+
+        setIsLoadingMarkdown(true);
+
+        const allFiles: File[] = [];
+
+        // Helper to recursively read directory entries
+        const readEntry = async (entry: FileSystemEntry): Promise<void> => {
+            if (entry.isFile) {
+                const fileEntry = entry as FileSystemFileEntry;
+                return new Promise((resolve) => {
+                    fileEntry.file((file) => {
+                        // Store the full relative path if possible, but File API lacks it.
+                        // We attach the webkitRelativePath or fullPath via a custom descriptor if needed,
+                        // but usually name matching is enough, or we can use entry.fullPath
+                        Object.defineProperty(file, 'fullPath', { value: entry.fullPath });
+                        allFiles.push(file);
+                        resolve();
+                    });
+                });
+            } else if (entry.isDirectory) {
+                const dirEntry = entry as FileSystemDirectoryEntry;
+                const reader = dirEntry.createReader();
+                return new Promise((resolve) => {
+                    reader.readEntries(async (entries) => {
+                        for (const child of entries) {
+                            await readEntry(child);
+                        }
+                        resolve();
+                    });
+                });
+            }
         };
-        reader.readAsText(file);
-        // Reset input so the same file can be re-uploaded
-        e.target.value = '';
+
+        // Read all dropped items
+        const promises = [];
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            const entry = item.webkitGetAsEntry();
+            if (entry) {
+                promises.push(readEntry(entry));
+            }
+        }
+
+        await Promise.all(promises);
+
+        // Separate MD files and Image files
+        const mdFiles = allFiles.filter(f => f.name.endsWith('.md') || f.name.endsWith('.txt'));
+        const imageFiles = allFiles.filter(f => f.type.startsWith('image/'));
+
+        if (mdFiles.length === 0) {
+            alert('No Markdown file found in the dropped items.');
+            setIsLoadingMarkdown(false);
+            return;
+        }
+
+        const mdFile = mdFiles[0];
+        let mdContent = await mdFile.text();
+
+        // If there are images, upload them and get the mapping
+        if (imageFiles.length > 0) {
+            const uploadPromises = imageFiles.map(async (img) => {
+                const formData = new FormData();
+                formData.append('image', img);
+                try {
+                    const res = await fetch('/api/upload-image', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        // Also associate with img.fullPath if we want robust replacement
+                        const fullPath = (img as any).fullPath;
+                        return { originalName: img.name, fullPath, url: data.url };
+                    }
+                } catch (err) {
+                    console.error('Failed to upload image:', img.name, err);
+                }
+                return null;
+            });
+
+            const uploadedImages = (await Promise.all(uploadPromises)).filter(Boolean);
+
+            // Replace local paths in markdown
+            // Matches ![alt](local-path)
+            mdContent = mdContent.replace(/!\[(.*?)\]\((.*?)\)/g, (match, alt, localPath) => {
+                // If the path is already an http(s) link, ignore
+                if (localPath.startsWith('http://') || localPath.startsWith('https://')) {
+                    return match;
+                }
+
+                // Decode uri in case it's url encoded
+                const decodedPath = decodeURIComponent(localPath);
+
+                // Extract just the filename to match
+                const filename = decodedPath.split('/').pop();
+
+                const matchedImg = uploadedImages.find(img => img?.originalName === filename || img?.fullPath.endsWith(decodedPath));
+
+                if (matchedImg) {
+                    return `![${alt}](${matchedImg.url})`;
+                }
+
+                return match;
+            });
+        }
+
+        handleChange('content', mdContent);
+        setIsLoadingMarkdown(false);
     };
 
     const handleCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -494,8 +639,18 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
             <hr className="border-slate-100/70 mb-6" />
 
             {/* Content Area - Markdown Upload & Preview */}
-            {formData.content ? (
-                <div>
+            {isLoadingMarkdown ? (
+                <div className="border-2 border-dashed border-slate-200 rounded-2xl min-h-[300px] flex flex-col items-center justify-center text-slate-400 group bg-slate-50/50">
+                    <span className="material-symbols-outlined text-4xl animate-spin mb-4">refresh</span>
+                    <h3 className="text-base font-semibold">Loading Markdown...</h3>
+                </div>
+            ) : formData.content ? (
+                <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`transition-all rounded-2xl ${isDragging ? 'ring-2 ring-primary bg-orange-50/50 p-4' : ''}`}
+                >
                     {/* Re-upload bar */}
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2 text-slate-400 text-sm">
@@ -514,18 +669,36 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
                     </div>
                     {/* Markdown Preview with TOC Layout */}
                     <MarkdownWithToc content={formData.content || ''} editorId="task-editor-preview" />
+
+                    {/* Full-screen drop overlay for easier dropping when preview is long */}
+                    {isDragging && (
+                        <div className="absolute inset-0 z-50 bg-orange-50/90 rounded-2xl flex flex-col items-center justify-center border-4 border-dashed border-primary animate-fade-in pointer-events-none">
+                            <span className="material-symbols-outlined text-7xl text-primary mb-4 animate-bounce">drive_folder_upload</span>
+                            <h3 className="text-2xl font-bold text-primary">Drop to Re-upload</h3>
+                            <p className="text-orange-600 font-medium mt-2">Replace current document & images</p>
+                        </div>
+                    )}
                 </div>
             ) : (
                 <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
                     onClick={() => mdFileInputRef.current?.click()}
-                    className="border-2 border-dashed border-slate-200 rounded-2xl min-h-[300px] flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-orange-50/50 transition-all group"
+                    className={`border-2 border-dashed rounded-2xl min-h-[300px] flex flex-col items-center justify-center cursor-pointer transition-all group ${isDragging ? 'border-primary bg-orange-50 scale-[1.02]' : 'border-slate-200 hover:border-primary/50 hover:bg-orange-50/50'}`}
                 >
-                    <span className="material-symbols-outlined text-5xl text-slate-300 group-hover:text-primary transition-colors mb-4">markdown</span>
-                    <h3 className="text-lg font-bold text-slate-600 group-hover:text-primary transition-colors">Upload Markdown</h3>
-                    <p className="text-slate-400 text-sm">Click to browse or drop file here</p>
+                    <span className={`material-symbols-outlined text-5xl transition-colors mb-4 ${isDragging ? 'text-primary' : 'text-slate-300 group-hover:text-primary'}`}>
+                        {isDragging ? 'drive_folder_upload' : 'markdown'}
+                    </span>
+                    <h3 className={`text-lg font-bold transition-colors ${isDragging ? 'text-primary' : 'text-slate-600 group-hover:text-primary'}`}>
+                        {isDragging ? 'Drop to Upload' : 'Upload Markdown'}
+                    </h3>
+                    <p className={`text-sm ${isDragging ? 'text-orange-500 font-medium' : 'text-slate-400'}`}>
+                        {isDragging ? 'Release to upload folder/file' : 'Click to browse or drop folder/file here'}
+                    </p>
                 </div>
             )}
-        </div >
+        </div>
     );
 };
 
