@@ -148,6 +148,36 @@ const MainApp: React.FC = () => {
   const [isFilterTransitioning, setIsFilterTransitioning] = useState(false);
   const isFirstFilterRenderRef = useRef(true);
   const widgetRef = useRef<HTMLDivElement>(null);
+  const widgetLeaveTimeoutRef = useRef<number | null>(null);
+
+  const expandWidget = (type: 'search' | 'filter') => {
+    if (widgetLeaveTimeoutRef.current) {
+      window.clearTimeout(widgetLeaveTimeoutRef.current);
+      widgetLeaveTimeoutRef.current = null;
+    }
+    if (type === 'search') {
+      setIsSearchExpanded(true);
+      setIsFilterExpanded(false);
+    } else if (type === 'filter') {
+      setIsFilterExpanded(true);
+      setIsSearchExpanded(false);
+    }
+  };
+
+  const clearWidgetTimeout = () => {
+    if (widgetLeaveTimeoutRef.current) {
+      window.clearTimeout(widgetLeaveTimeoutRef.current);
+      widgetLeaveTimeoutRef.current = null;
+    }
+  };
+
+  const handleWidgetMouseLeave = () => {
+    // Add a delay to allow the layout transition without immediately collapsing
+    widgetLeaveTimeoutRef.current = window.setTimeout(() => {
+      setIsSearchExpanded(false);
+      setIsFilterExpanded(false);
+    }, 600); // Wait enough time for transition (500ms) and mouse follow-up
+  };
 
   const menuRef = useRef<HTMLDivElement>(null);
   const [timelineCategory, setTimelineCategory] = useState('All Categories');
@@ -741,10 +771,8 @@ const MainApp: React.FC = () => {
         <div className="fixed bottom-8 right-8 z-50 pointer-events-none flex flex-row-reverse items-center justify-start">
           <div
             ref={widgetRef}
-            onMouseLeave={() => {
-              setIsSearchExpanded(false);
-              setIsFilterExpanded(false);
-            }}
+            onMouseEnter={clearWidgetTimeout}
+            onMouseLeave={handleWidgetMouseLeave}
             className={`glass-float-widget pointer-events-auto rounded-full p-2 flex flex-row-reverse items-center gap-2 overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width,transform] ${isSearchExpanded || isFilterExpanded ? 'scale-100 shadow-[0_28px_62px_-20px_rgba(15,23,42,0.38)]' : 'scale-95 hover:scale-100'
               }`}
           >
@@ -769,13 +797,9 @@ const MainApp: React.FC = () => {
             {/* FILTER SECTION (Now on the right side) */}
             <div className={`liquid-segment flex flex-row-reverse items-center overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] rounded-full ${isFilterExpanded ? 'w-[372px]' : 'w-10'}`}>
               <button
-                onMouseEnter={() => {
-                  if (!isFilterExpanded) {
-                    setIsFilterExpanded(true);
-                    setIsSearchExpanded(false);
-                  }
-                }}
+                onMouseEnter={() => expandWidget('filter')}
                 onClick={() => {
+                  if (widgetLeaveTimeoutRef.current) window.clearTimeout(widgetLeaveTimeoutRef.current);
                   setIsFilterExpanded(!isFilterExpanded);
                   if (!isFilterExpanded) setIsSearchExpanded(false);
                 }}
@@ -812,13 +836,9 @@ const MainApp: React.FC = () => {
             {/* SEARCH SECTION (Expanding leftward) */}
             <div className={`liquid-segment flex flex-row-reverse items-center overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] rounded-full ${isSearchExpanded ? 'w-[280px] liquid-segment-active' : 'w-10'}`}>
               <button
-                onMouseEnter={() => {
-                  if (!isSearchExpanded) {
-                    setIsSearchExpanded(true);
-                    setIsFilterExpanded(false);
-                  }
-                }}
+                onMouseEnter={() => expandWidget('search')}
                 onClick={() => {
+                  if (widgetLeaveTimeoutRef.current) window.clearTimeout(widgetLeaveTimeoutRef.current);
                   setIsSearchExpanded(!isSearchExpanded);
                   if (!isSearchExpanded) setIsFilterExpanded(false);
                 }}
