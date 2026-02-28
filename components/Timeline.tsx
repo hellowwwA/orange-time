@@ -57,7 +57,7 @@ const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, rea
       case 'Learning': return 'school';
       case 'Health': return 'health_and_safety';
       case 'Urgent': return 'notification_important';
-      case 'Design': return 'brush';
+      case 'Gaming': return 'sports_esports';
       case 'Product': return 'inventory_2';
       default: return 'task';
     }

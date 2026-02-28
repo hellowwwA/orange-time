@@ -80,7 +80,7 @@ const Home: React.FC<HomeProps> = ({ tasks, categories, onTaskClick }) => {
       case 'Learning': return 'school';
       case 'Health': return 'health_and_safety';
       case 'Urgent': return 'notification_important';
-      case 'Design': return 'brush';
+      case 'Gaming': return 'sports_esports';
       case 'Product': return 'inventory_2';
       default: return 'task';
     }
@@ -253,10 +253,10 @@ const Home: React.FC<HomeProps> = ({ tasks, categories, onTaskClick }) => {
                 </span>
                 <span>
                   <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${task.priority === 'High'
-                      ? 'bg-red-50 text-red-600'
-                      : task.priority === 'Medium'
-                        ? 'bg-amber-50 text-amber-600'
-                        : 'bg-slate-100 text-slate-600'
+                    ? 'bg-red-50 text-red-600'
+                    : task.priority === 'Medium'
+                      ? 'bg-amber-50 text-amber-600'
+                      : 'bg-slate-100 text-slate-600'
                     }`}>
                     {task.priority || 'Low'}
                   </span>

@@ -12,7 +12,7 @@ export interface StatCardProps {
 export interface Task {
   id: string;
   title: string;
-  category: 'Personal' | 'Learning' | 'Health' | 'Urgent' | 'Design' | 'Product';
+  category: 'Personal' | 'Learning' | 'Health' | 'Urgent' | 'Gaming' | 'Product';
   dateStr: string;
   endDateStr?: string; // Added for editor support
   startTime?: string;

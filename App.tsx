@@ -19,7 +19,7 @@ const CATEGORIES = [
   { name: 'Learning', color: 'bg-blue-500', border: 'border-blue-200', text: 'text-blue-700', bg: 'bg-blue-50' },
   { name: 'Health', color: 'bg-green-500', border: 'border-green-200', text: 'text-green-700', bg: 'bg-green-50' },
   { name: 'Urgent', color: 'bg-red-500', border: 'border-red-200', text: 'text-red-700', bg: 'bg-red-50' },
-  { name: 'Design', color: 'bg-purple-500', border: 'border-purple-200', text: 'text-purple-700', bg: 'bg-purple-50' },
+  { name: 'Gaming', color: 'bg-emerald-500', border: 'border-emerald-200', text: 'text-emerald-700', bg: 'bg-emerald-50' },
   { name: 'Product', color: 'bg-indigo-500', border: 'border-indigo-200', text: 'text-indigo-700', bg: 'bg-indigo-50' },
 ];
 
@@ -29,7 +29,7 @@ export const DEFAULT_COVERS: Record<string, string> = {
   'Learning': '/default-covers/mialu_4.jpg',
   'Health': '/default-covers/mialu_3.jpg',
   'Urgent': '/default-covers/mialu_1.jpg',
-  'Design': '/default-covers/mialu_5.jpg',
+  'Gaming': '/default-covers/mialu_5.jpg',
   'Product': '/default-covers/mialu_6.jpg',
 
   // Backward compatibility for legacy category names
@@ -59,7 +59,7 @@ const generateMockTasks = (): Task[] => {
 
       tasks.push({
         id: `${cat}-${i}`,
-        title: `${cat} Task ${i + 1}: ${['Review', 'Analyze', 'Create'][i % 3]} ${['Reports', 'Design', 'Code'][i % 3]}`,
+        title: `${cat} Task ${i + 1}: ${['Review', 'Analyze', 'Create'][i % 3]} ${['Reports', 'Strategy', 'Code'][i % 3]}`,
         category: cat as any,
         dateStr: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
         endDateStr: new Date(date.getTime() + (2 * 24 * 60 * 60 * 1000)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
@@ -88,7 +88,7 @@ const generateMockTasks = (): Task[] => {
     {
       id: 'june-26-2',
       title: 'Advanced UX Workshop',
-      category: 'Design',
+      category: 'Gaming',
       dateStr: 'Jun 12, 2026',
       description: 'Attending the 3-day workshop on micro-interactions and accessibility.',
       status: 'ToDo',
