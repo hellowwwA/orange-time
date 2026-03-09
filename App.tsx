@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { apiClient } from './utils/apiClient';
 import Dashboard from './components/Dashboard';
 import Home from './components/Home';
 import Timeline from './components/Timeline';
@@ -172,11 +173,8 @@ const MainApp: React.FC = () => {
   };
 
   const handleWidgetMouseLeave = () => {
-    // Add a delay to allow the layout transition without immediately collapsing
-    widgetLeaveTimeoutRef.current = window.setTimeout(() => {
-      setIsSearchExpanded(false);
-      setIsFilterExpanded(false);
-    }, 600); // Wait enough time for transition (500ms) and mouse follow-up
+    setIsSearchExpanded(false);
+    setIsFilterExpanded(false);
   };
 
   const menuRef = useRef<HTMLDivElement>(null);
@@ -255,8 +253,11 @@ const MainApp: React.FC = () => {
 
   // Load tasks from API
   useEffect(() => {
-    fetch('/api/tasks')
-      .then(res => res.json())
+    apiClient('/api/tasks')
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load tasks');
+        return res.json();
+      })
       .then(data => {
         if (Array.isArray(data)) {
           setTasks(data);
@@ -275,7 +276,7 @@ const MainApp: React.FC = () => {
   // Save tasks to API
   useEffect(() => {
     if (isDataLoaded && !guestMode) {
-      fetch('/api/tasks', {
+      apiClient('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(tasks)
@@ -773,12 +774,11 @@ const MainApp: React.FC = () => {
             ref={widgetRef}
             onMouseEnter={clearWidgetTimeout}
             onMouseLeave={handleWidgetMouseLeave}
-            className={`glass-float-widget pointer-events-auto rounded-full p-2 flex flex-row-reverse items-center gap-2 overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width,transform] ${isSearchExpanded || isFilterExpanded ? 'scale-100 shadow-[0_28px_62px_-20px_rgba(15,23,42,0.38)]' : 'scale-95 hover:scale-100'
+            className={`glass-float-widget pointer-events-auto rounded-full p-2 flex flex-row-reverse items-center justify-start gap-2 overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width,transform] ${isSearchExpanded || isFilterExpanded ? 'scale-100 shadow-[0_28px_62px_-20px_rgba(15,23,42,0.38)]' : 'scale-95 hover:scale-100'
               }`}
           >
             {!guestMode && (
               <>
-                <div className="liquid-separator w-px h-6 shrink-0"></div>
                 <button
                   onClick={() => {
                     setIsSearchExpanded(false);
@@ -795,7 +795,7 @@ const MainApp: React.FC = () => {
             )}
 
             {/* FILTER SECTION (Now on the right side) */}
-            <div className={`liquid-segment flex flex-row-reverse items-center overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] rounded-full ${isFilterExpanded ? 'w-[372px]' : 'w-10'}`}>
+            <div className={`liquid-segment flex flex-row-reverse items-center overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] rounded-full ${isFilterExpanded ? 'w-[372px]' : 'w-10'}`}>
               <button
                 onMouseEnter={() => expandWidget('filter')}
                 onClick={() => {
@@ -811,7 +811,7 @@ const MainApp: React.FC = () => {
                 )}
               </button>
 
-              <div className={`flex flex-row items-center gap-1 whitespace-nowrap transition-opacity duration-300 pr-2 pl-2 ${isFilterExpanded ? 'opacity-100 delay-100' : 'opacity-0 pointer-events-none select-none'}`}>
+              <div className={`flex flex-row items-center gap-1 whitespace-nowrap transition-opacity duration-700 pr-2 pl-2 ${isFilterExpanded ? 'opacity-100 delay-100' : 'opacity-0 pointer-events-none select-none'}`}>
                 {['All Status', 'ToDo', 'In Progress', 'Done'].map(status => (
                   <button
                     key={status}
@@ -830,11 +830,8 @@ const MainApp: React.FC = () => {
               </div>
             </div>
 
-            {/* SEPARATOR */}
-            <div className="liquid-separator w-px h-6 shrink-0"></div>
-
             {/* SEARCH SECTION (Expanding leftward) */}
-            <div className={`liquid-segment flex flex-row-reverse items-center overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] rounded-full ${isSearchExpanded ? 'w-[280px] liquid-segment-active' : 'w-10'}`}>
+            <div className={`liquid-segment flex flex-row-reverse items-center overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] rounded-full ${isSearchExpanded ? 'w-[372px] liquid-segment-active' : 'w-10'}`}>
               <button
                 onMouseEnter={() => expandWidget('search')}
                 onClick={() => {
@@ -861,7 +858,7 @@ const MainApp: React.FC = () => {
                 autoFocus={isSearchExpanded}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full bg-transparent border-none focus:ring-0 text-slate-800 text-sm font-medium outline-none transition-opacity duration-300 pl-3 ${isSearchExpanded ? 'opacity-100 delay-100' : 'opacity-0 pointer-events-none select-none'}`}
+                className={`w-full bg-transparent border-none focus:ring-0 text-slate-800 text-sm font-medium outline-none transition-opacity duration-700 pl-3 ${isSearchExpanded ? 'opacity-100 delay-100' : 'opacity-0 pointer-events-none select-none'}`}
                 placeholder="Search..."
               />
             </div>

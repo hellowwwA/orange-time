@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Task } from '../types';
 import { DEFAULT_COVERS } from '../App';
 import MarkdownWithToc from './MarkdownWithToc';
+import { apiClient } from '../utils/apiClient';
 
 interface TaskViewProps {
   task: Task | null;
@@ -19,7 +20,7 @@ const TaskView: React.FC<TaskViewProps> = ({ task, canEdit = false, onEdit }) =>
         setLocalContent(task.content);
       } else if (task.hasContent) {
         setIsLoading(true);
-        fetch(`/api/tasks/${task.id}/content`)
+        apiClient(`/api/tasks/${task.id}/content`)
           .then(res => res.text())
           .then(text => setLocalContent(text))
           .catch(err => {

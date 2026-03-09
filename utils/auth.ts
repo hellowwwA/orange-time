@@ -12,6 +12,78 @@ const api = axios.create({
     },
 });
 
+// Refresh token logic
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (value?: unknown) => void; reject: (reason?: any) => void }> = [];
+
+const processQueue = (error: Error | null, token: string | null = null) => {
+    failedQueue.forEach(prom => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token);
+        }
+    });
+    failedQueue = [];
+};
+
+api.interceptors.response.use(
+    (response) => {
+        return response;
+    },
+    async (error) => {
+        const originalRequest = error.config;
+
+        if (
+            error.response?.status === 401 &&
+            !originalRequest._retry &&
+            originalRequest.url !== '/api/auth/refresh' &&
+            originalRequest.url !== '/api/auth/logout'
+        ) {
+            // If in guest mode, do not trigger refresh or logout on 401
+            if (isGuestMode()) {
+                return Promise.reject(error);
+            }
+
+            if (isRefreshing) {
+                return new Promise(function (resolve, reject) {
+                    failedQueue.push({ resolve, reject });
+                })
+                    .then(() => {
+                        return api(originalRequest);
+                    })
+                    .catch((err) => {
+                        return Promise.reject(err);
+                    });
+            }
+
+            originalRequest._retry = true;
+            isRefreshing = true;
+
+            try {
+                await axios.post('/api/auth/refresh', {}, {
+                    withCredentials: true,
+                    baseURL: window.location.origin
+                });
+                processQueue(null);
+                return api(originalRequest);
+            } catch (err) {
+                processQueue(err as Error, null);
+                // The refresh token is expired or invalid
+                console.log('Refresh token expired or invalid. Redirecting to login.');
+                disableGuestMode();
+                document.cookie = "JSESSIONID=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                window.location.href = '/login';
+                return Promise.reject(err);
+            } finally {
+                isRefreshing = false;
+            }
+        }
+
+        return Promise.reject(error);
+    }
+);
+
 export interface User {
     id: number;
     githubId: string;

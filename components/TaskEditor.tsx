@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Task } from '../types';
 import MarkdownWithToc from './MarkdownWithToc';
 import 'md-editor-rt/lib/preview.css';
+import { apiClient } from '../utils/apiClient';
 
 interface TaskEditorProps {
     task: Task | null;
@@ -159,6 +160,8 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
 
     const [isLoadingMarkdown, setIsLoadingMarkdown] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
+    const [isGeneratingCover, setIsGeneratingCover] = useState(false);
+    const [coverError, setCoverError] = useState<string | null>(null);
 
     // Auto-resize summary textarea
     useEffect(() => {
@@ -173,7 +176,7 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
             setFormData({ ...task });
             if (!task.content && task.hasContent) {
                 setIsLoadingMarkdown(true);
-                fetch(`/api/tasks/${task.id}/content`)
+                apiClient(`/api/tasks/${task.id}/content`)
                     .then(res => res.text())
                     .then(text => {
                         setFormData(prev => ({ ...prev, content: text }));
@@ -226,11 +229,15 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
 
         if (showCalendar === 'start') {
             const currentEnd = parseDateStr(formData.endDateStr);
+            const updated = { ...formData, dateStr: formatted };
             // If start date is after current end date
             if (currentEnd && date > currentEnd) {
-                handleChange('endDateStr', '');
+                updated.endDateStr = '';
             }
-            handleChange('dateStr', formatted);
+            setFormData(updated);
+            if (updated.id) {
+                onUpdate(updated as Task);
+            }
         }
         if (showCalendar === 'end') {
             const currentStart = parseDateStr(formData.dateStr);
@@ -381,7 +388,7 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
                 const formData = new FormData();
                 formData.append('image', img);
                 try {
-                    const res = await fetch('/api/upload-image', {
+                    const res = await apiClient('/api/upload-image', {
                         method: 'POST',
                         body: formData
                     });
@@ -434,9 +441,13 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
         reader.onload = (event) => {
             const result = event.target?.result as string;
             if (!result) return;
-            handleChange('cover', result);
-            if (formData.coverPosition === undefined) {
-                handleChange('coverPosition', 50);
+            const updated = { ...formData, cover: result };
+            if (updated.coverPosition === undefined) {
+                updated.coverPosition = 50;
+            }
+            setFormData(updated);
+            if (updated.id) {
+                onUpdate(updated as Task);
             }
         };
         reader.readAsDataURL(file);
@@ -444,8 +455,63 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
     };
 
     const handleRemoveCover = () => {
-        handleChange('cover', undefined);
-        handleChange('coverPosition', undefined);
+        const updated = { ...formData, cover: undefined, coverPosition: undefined };
+        setFormData(updated);
+        if (updated.id) {
+            onUpdate(updated as Task);
+        }
+    };
+
+    const handleGenerateCover = async () => {
+        if (isGeneratingCover) return;
+        setCoverError(null);
+        setIsGeneratingCover(true);
+        try {
+            const response = await apiClient('/api/images/generate-background', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ title: (formData.title || 'Untitled Task').trim() || 'Untitled Task' }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Generate failed (${response.status})`);
+            }
+
+            const contentType = response.headers.get('content-type') || '';
+            let imageBase64 = '';
+            if (contentType.includes('application/json')) {
+                const data = await response.json();
+                if (typeof data === 'string') {
+                    imageBase64 = data;
+                } else if (Array.isArray(data) && data.length > 0) {
+                    // Extract from array format: [{ imageUrl: '...' }]
+                    imageBase64 = data[0]?.imageUrl || data[0]?.image || data[0]?.data || data[0]?.base64 || '';
+                } else {
+                    imageBase64 = data?.imageUrl || data?.image || data?.data || data?.base64 || '';
+                }
+            } else {
+                imageBase64 = await response.text();
+            }
+
+            if (!imageBase64 || !imageBase64.startsWith('data:image/')) {
+                throw new Error('Invalid image payload');
+            }
+
+            const updated = { ...formData, cover: imageBase64 };
+            if (updated.coverPosition === undefined) {
+                updated.coverPosition = 50;
+            }
+            setFormData(updated);
+            if (updated.id) {
+                onUpdate(updated as Task);
+            }
+        } catch (err) {
+            console.error('Failed to generate AI cover:', err);
+            setCoverError('AI background generation failed. Please try again.');
+        } finally {
+            setIsGeneratingCover(false);
+        }
     };
 
     return (
@@ -498,6 +564,16 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
                             )}
                             <div className="absolute top-3 right-3 flex items-center gap-2">
                                 <button
+                                    onClick={handleGenerateCover}
+                                    disabled={isGeneratingCover}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-orange-500/95 text-white hover:bg-orange-600 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    <span className={`material-symbols-outlined text-[14px] ${isGeneratingCover ? 'animate-spin' : ''}`}>
+                                        {isGeneratingCover ? 'progress_activity' : 'auto_awesome'}
+                                    </span>
+                                    {isGeneratingCover ? 'Generating...' : 'AI Generate'}
+                                </button>
+                                <button
                                     onClick={() => fileInputRef.current?.click()}
                                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-white/90 text-slate-700 hover:bg-white transition-colors cursor-pointer"
                                 >
@@ -514,6 +590,11 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, categories, onUpdate, onC
                                     </button>
                                 )}
                             </div>
+                            {coverError && (
+                                <div className="absolute left-3 bottom-3 text-[11px] font-medium text-red-600 bg-white/90 border border-red-100 rounded-md px-2 py-1">
+                                    {coverError}
+                                </div>
+                            )}
                         </div>
                         {formData.cover && (
                             <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/70">

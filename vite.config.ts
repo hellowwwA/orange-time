@@ -24,6 +24,10 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
+        '/api/images/generate-background': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+        },
         '/api/tasks': {
           target: 'http://127.0.0.1:3001',
           changeOrigin: true,
