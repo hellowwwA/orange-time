@@ -8,6 +8,7 @@ import TaskEditor from './components/TaskEditor';
 import TaskView from './components/TaskView';
 import Tooltip from './components/Tooltip';
 import Snowfall from './components/Snowfall';
+import LiquidGlass from './components/LiquidGlass';
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ViewState, Task } from './types';
@@ -150,6 +151,19 @@ const MainApp: React.FC = () => {
   const isFirstFilterRenderRef = useRef(true);
   const widgetRef = useRef<HTMLDivElement>(null);
   const widgetLeaveTimeoutRef = useRef<number | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus search input when expanded
+  useEffect(() => {
+    if (isSearchExpanded && searchInputRef.current) {
+      const timeoutId = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isSearchExpanded]);
+
+  // Removed ResizeObserver hack to fix first-hover window resize jitter
 
   const expandWidget = (type: 'search' | 'filter') => {
     if (widgetLeaveTimeoutRef.current) {
@@ -769,99 +783,138 @@ const MainApp: React.FC = () => {
 
       {/* Floating Dynamic Widget for Search & Filter */}
       {showSearch && (
-        <div className="fixed bottom-8 right-8 z-50 pointer-events-none flex flex-row-reverse items-center justify-start">
-          <div
-            ref={widgetRef}
-            onMouseEnter={clearWidgetTimeout}
-            onMouseLeave={handleWidgetMouseLeave}
-            className={`glass-float-widget pointer-events-auto rounded-full p-2 flex flex-row-reverse items-center justify-start gap-2 overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width,transform] ${isSearchExpanded || isFilterExpanded ? 'scale-100 shadow-[0_28px_62px_-20px_rgba(15,23,42,0.38)]' : 'scale-95 hover:scale-100'
-              }`}
+        <div 
+          className="fixed z-50 pointer-events-none" 
+          style={{ bottom: 'max(20px, env(safe-area-inset-bottom))', right: 'max(40px, env(safe-area-inset-right))' }}
+        >
+          <div 
+            className="relative"
           >
-            {!guestMode && (
-              <>
-                <button
-                  onClick={() => {
-                    setIsSearchExpanded(false);
-                    setIsFilterExpanded(false);
-                    handleCreateNew();
-                  }}
-                  className="liquid-icon-btn w-10 h-10 shrink-0 flex items-center justify-center rounded-full transition-colors"
-                  title="New Task"
-                  aria-label="New Task"
-                >
-                  <span className="material-symbols-outlined text-[20px]">add</span>
-                </button>
-              </>
-            )}
-
-            {/* FILTER SECTION (Now on the right side) */}
-            <div className={`liquid-segment flex flex-row-reverse items-center overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] rounded-full ${isFilterExpanded ? 'w-[372px]' : 'w-10'}`}>
-              <button
-                onMouseEnter={() => expandWidget('filter')}
-                onClick={() => {
-                  if (widgetLeaveTimeoutRef.current) window.clearTimeout(widgetLeaveTimeoutRef.current);
-                  setIsFilterExpanded(!isFilterExpanded);
-                  if (!isFilterExpanded) setIsSearchExpanded(false);
-                }}
-                className={`liquid-icon-btn w-10 h-10 shrink-0 flex items-center justify-center rounded-full transition-colors relative ${statusFilter !== 'All Status' && !isFilterExpanded ? 'text-orange-500 bg-orange-100/60' : 'text-slate-700'}`}
+            <LiquidGlass
+              displacementScale={50}
+              blurAmount={0.0625}
+              saturation={140}
+              aberrationIntensity={1.5}
+              elasticity={0}
+              cornerRadius={100}
+              padding="0"
+              className="rounded-full"
+            >
+              <div
+                ref={widgetRef}
+                className="pointer-events-auto relative rounded-full p-2 overflow-hidden shadow-[0_18px_44px_-20px_rgba(15,23,42,0.35)] transition-all duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] origin-right will-change-[width]"
+                onMouseEnter={clearWidgetTimeout}
+                onMouseLeave={handleWidgetMouseLeave}
+                onFocus={clearWidgetTimeout}
               >
-                <span className="material-symbols-outlined text-[20px] font-medium drop-shadow-sm">tune</span>
-                {statusFilter !== 'All Status' && !isFilterExpanded && (
-                  <span className="absolute top-2.5 right-2.5 w-1.5 h-1.5 rounded-full bg-orange-500 ring-2 ring-white/90"></span>
-                )}
-              </button>
-
-              <div className={`flex flex-row items-center gap-1 whitespace-nowrap transition-opacity duration-700 pr-2 pl-2 ${isFilterExpanded ? 'opacity-100 delay-100' : 'opacity-0 pointer-events-none select-none'}`}>
-                {['All Status', 'ToDo', 'In Progress', 'Done'].map(status => (
-                  <button
-                    key={status}
-                    onClick={() => {
-                      setStatusFilter(status);
-                      setIsFilterExpanded(false);
-                    }}
-                    className={`px-3 py-1.5 rounded-[14px] text-[12px] font-semibold transition-all whitespace-nowrap ${statusFilter === status
-                      ? 'liquid-chip-active text-slate-900'
-                      : 'bg-transparent text-slate-700/90 hover:bg-white/20 hover:text-slate-900'
-                      }`}
+                {/* Left expanding track (reserves 40px anchor + 8px gap) */}
+                <div className="pr-12 flex flex-row items-center justify-end gap-2">
+                  {/* FILTER SECTION */}
+                  <div 
+                    className="liquid-segment order-2 flex flex-row-reverse items-center overflow-hidden transition-all duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] rounded-full"
+                    style={{ width: isFilterExpanded ? 'min(372px, calc(100vw - 3rem))' : '2.75rem' }}
                   >
-                    {status}
-                  </button>
-                ))}
+                    <button
+                      aria-label="Toggle Status Filters"
+                      aria-expanded={isFilterExpanded}
+                      onMouseEnter={() => expandWidget('filter')}
+                      onFocus={() => expandWidget('filter')}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        if (widgetLeaveTimeoutRef.current) window.clearTimeout(widgetLeaveTimeoutRef.current);
+                        setIsFilterExpanded(!isFilterExpanded);
+                        if (!isFilterExpanded) setIsSearchExpanded(false);
+                      }}
+                      className={`liquid-icon-btn w-11 h-11 shrink-0 flex items-center justify-center rounded-full transition-colors relative touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${statusFilter !== 'All Status' && !isFilterExpanded ? 'text-orange-500' : 'text-slate-700'}`}
+                    >
+                      <span className="material-symbols-outlined text-[20px] font-medium drop-shadow-sm">tune</span>
+                      {statusFilter !== 'All Status' && !isFilterExpanded && (
+                        <span className="absolute top-2.5 right-2.5 w-1.5 h-1.5 rounded-full bg-orange-500 ring-2 ring-white/90"></span>
+                      )}
+                    </button>
+
+                    <div className={`flex flex-row items-center gap-1 overflow-x-auto whitespace-nowrap transition-opacity duration-[900ms] pr-2 pl-2 py-0.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${isFilterExpanded ? 'opacity-100 delay-100 pointer-events-auto' : 'opacity-0 pointer-events-none select-none'}`}>
+                      {['All Status', 'ToDo', 'In Progress', 'Done'].map(status => (
+                        <button
+                          key={status}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setStatusFilter(status);
+                            setIsFilterExpanded(false);
+                          }}
+                          className={`h-8 px-3 rounded-[14px] text-[12px] leading-none font-semibold transition-all whitespace-nowrap ${statusFilter === status
+                            ? 'liquid-chip-active text-slate-900'
+                            : 'bg-transparent text-slate-700/90 hover:bg-white/25 hover:text-slate-900'
+                            }`}
+                        >
+                          {status}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* SEARCH SECTION */}
+                  <div 
+                    className={`liquid-segment order-1 flex flex-row-reverse items-center overflow-hidden transition-all duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] rounded-full ${isSearchExpanded ? 'liquid-segment-active' : ''}`}
+                    style={{ width: isSearchExpanded ? 'min(372px, calc(100vw - 3rem))' : '2.75rem' }}
+                  >
+                    <button
+                      aria-label="Toggle Search"
+                      aria-expanded={isSearchExpanded}
+                      onMouseEnter={() => expandWidget('search')}
+                      onFocus={() => expandWidget('search')}
+                      onClick={() => {
+                        if (widgetLeaveTimeoutRef.current) window.clearTimeout(widgetLeaveTimeoutRef.current);
+                        setIsSearchExpanded(!isSearchExpanded);
+                        if (!isSearchExpanded) setIsFilterExpanded(false);
+                      }}
+                      className={`liquid-icon-btn w-11 h-11 shrink-0 flex items-center justify-center rounded-full transition-colors touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${searchQuery && !isSearchExpanded ? 'text-orange-600' : 'text-slate-600'}`}
+                    >
+                      <span className="material-symbols-outlined text-[20px]">search</span>
+                    </button>
+
+                    {searchQuery && isSearchExpanded && (
+                      <button
+                        aria-label="Clear Search"
+                        onClick={(e) => { e.stopPropagation(); setSearchQuery(''); }}
+                        className="ml-2 shrink-0 w-6 h-6 rounded-full bg-white/45 text-slate-700 hover:bg-white/70 hover:text-slate-900 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">close</span>
+                      </button>
+                    )}
+
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className={`w-full min-w-0 bg-transparent border-none focus:ring-0 text-slate-800 text-sm font-medium outline-none transition-opacity duration-[900ms] pl-3 ${isSearchExpanded ? 'opacity-100 delay-100' : 'opacity-0 pointer-events-none select-none'}`}
+                      placeholder="Search..."
+                    />
+                  </div>
+                </div>
+
+                {/* Right fixed anchor slot: 40px independent layer */}
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 [transform:translate3d(0,-50%,0)] will-change-transform w-10 h-10">
+                  {!guestMode ? (
+                    <button
+                      onClick={() => {
+                        setIsSearchExpanded(false);
+                        setIsFilterExpanded(false);
+                        handleCreateNew();
+                      }}
+                      className="liquid-icon-btn w-10 h-10 flex items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+                      title="New Task"
+                      aria-label="Create New Task"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">add</span>
+                    </button>
+                  ) : (
+                    <div className="w-10 h-10 pointer-events-none" />
+                  )}
+                </div>
               </div>
-            </div>
-
-            {/* SEARCH SECTION (Expanding leftward) */}
-            <div className={`liquid-segment flex flex-row-reverse items-center overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] rounded-full ${isSearchExpanded ? 'w-[372px] liquid-segment-active' : 'w-10'}`}>
-              <button
-                onMouseEnter={() => expandWidget('search')}
-                onClick={() => {
-                  if (widgetLeaveTimeoutRef.current) window.clearTimeout(widgetLeaveTimeoutRef.current);
-                  setIsSearchExpanded(!isSearchExpanded);
-                  if (!isSearchExpanded) setIsFilterExpanded(false);
-                }}
-                className={`liquid-icon-btn w-10 h-10 shrink-0 flex items-center justify-center rounded-full transition-colors ${searchQuery && !isSearchExpanded ? 'text-orange-600 bg-orange-100' : 'text-slate-600'}`}
-              >
-                <span className="material-symbols-outlined text-[20px]">search</span>
-              </button>
-
-              {searchQuery && isSearchExpanded && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); setSearchQuery(''); }}
-                  className="ml-2 shrink-0 w-6 h-6 rounded-full bg-white/45 text-slate-700 hover:bg-white/70 hover:text-slate-900 flex items-center justify-center transition-colors"
-                >
-                  <span className="material-symbols-outlined text-[14px]">close</span>
-                </button>
-              )}
-
-              <input
-                type="text"
-                autoFocus={isSearchExpanded}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full bg-transparent border-none focus:ring-0 text-slate-800 text-sm font-medium outline-none transition-opacity duration-700 pl-3 ${isSearchExpanded ? 'opacity-100 delay-100' : 'opacity-0 pointer-events-none select-none'}`}
-                placeholder="Search..."
-              />
-            </div>
+            </LiquidGlass>
           </div>
         </div>
       )}
