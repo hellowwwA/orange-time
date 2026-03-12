@@ -517,10 +517,10 @@ const MainApp: React.FC = () => {
               {/* Left: Branding */}
               <div className="flex items-center gap-4 min-w-0">
                 <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => navigateToView('home')}>
-                  <div className={`h-9 w-9 rounded-xl flex items-center justify-center transition-all duration-500 ${currentView === 'editor' ? 'text-primary' : 'bg-gradient-to-br from-orange-400 to-orange-600 shadow-lg shadow-orange-500/30 group-hover:scale-110 group-hover:rotate-12'}`}>
-                    <span className={`material-symbols-outlined text-xl ${currentView === 'editor' ? 'text-inherit' : 'text-white'}`}>nutrition</span>
+                  <div className="h-9 w-9 rounded-xl flex items-center justify-center transition-all duration-500 bg-gradient-to-br from-orange-400 to-orange-600 shadow-lg shadow-orange-500/30 group-hover:scale-110 group-hover:rotate-12">
+                    <span className="material-symbols-outlined text-xl text-white">nutrition</span>
                   </div>
-                  <h1 className={`text-sm font-black tracking-tight uppercase ${currentView === 'editor' ? 'text-primary' : 'bg-gradient-to-r from-orange-600 via-orange-500 to-amber-400 bg-clip-text text-transparent'}`}>orange time</h1>
+                  <h1 className="text-sm font-black tracking-tight uppercase bg-gradient-to-r from-orange-600 via-orange-500 to-amber-400 bg-clip-text text-transparent">orange time</h1>
                 </div>
               </div>
 
