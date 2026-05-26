@@ -1,0 +1,8 @@
+{
+  "restrictCreateTask": false,
+  "restrictEditTask": false,
+  "restrictDeleteTask": false,
+  "restrictToggleFavorite": false,
+  "restrictToggleSnow": false,
+  "restrictViewDashboard": false
+}

@@ -14,6 +14,24 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { ViewState, Task } from './types';
 import { disableGuestMode, getCurrentUser, isGuestMode, logout, User } from './utils/auth'; // Import auth utilities
 
+interface GuestConfig {
+  restrictCreateTask: boolean;
+  restrictEditTask: boolean;
+  restrictDeleteTask: boolean;
+  restrictToggleFavorite: boolean;
+  restrictToggleSnow: boolean;
+  restrictViewDashboard: boolean;
+}
+
+const DEFAULT_GUEST_CONFIG: GuestConfig = {
+  restrictCreateTask: true,
+  restrictEditTask: true,
+  restrictDeleteTask: true,
+  restrictToggleFavorite: true,
+  restrictToggleSnow: false,
+  restrictViewDashboard: false,
+};
+
 // Global Categories Configuration
 const CATEGORIES = [
   // Personal updated to Hermes Orange (#f37021)
@@ -205,8 +223,24 @@ const MainApp: React.FC = () => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Load User Data
+  // Guest Mode Configuration State
+  const [guestConfig, setGuestConfig] = useState<GuestConfig>(DEFAULT_GUEST_CONFIG);
+
+  // Load User Data and Guest Config
   useEffect(() => {
+    // Fetch guest configuration
+    fetch('/guest-config.json')
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load guest config');
+        return res.json();
+      })
+      .then(data => {
+        setGuestConfig(prev => ({ ...prev, ...data }));
+      })
+      .catch(err => {
+        console.warn('Using default guest mode restrictions:', err);
+      });
+
     setGuestMode(isGuestMode());
     getCurrentUser().then(userData => {
       setUser(userData);
@@ -216,6 +250,18 @@ const MainApp: React.FC = () => {
       }
     }).catch(err => console.error('Failed to load user:', err));
   }, []);
+
+  // Redirect safety for restricted views
+  useEffect(() => {
+    if (guestMode) {
+      if (guestConfig.restrictViewDashboard && currentView === 'dashboard') {
+        setCurrentView('home');
+      }
+      if (guestConfig.restrictEditTask && currentView === 'editor') {
+        setCurrentView('home');
+      }
+    }
+  }, [guestMode, guestConfig, currentView]);
 
   // Close User Menu on Outside Click
   useEffect(() => {
@@ -341,7 +387,7 @@ const MainApp: React.FC = () => {
   };
 
   const handleEditTaskFromViewer = () => {
-    if (guestMode) return;
+    if (guestMode && guestConfig.restrictEditTask) return;
     if (editingTask) logRecentTask(editingTask.id);
     setIsCreatingNewTask(false);
     setPreviousView('viewer');
@@ -349,13 +395,13 @@ const MainApp: React.FC = () => {
   };
 
   const handleToggleFavorite = () => {
-    if (guestMode || !editingTask) return;
+    if ((guestMode && guestConfig.restrictToggleFavorite) || !editingTask) return;
     const toggled: Task = { ...editingTask, favorite: !editingTask.favorite };
     handleTaskUpdate(toggled);
   };
 
   const handleDeleteTask = () => {
-    if (guestMode) return;
+    if (guestMode && guestConfig.restrictDeleteTask) return;
     if (!editingTask) return;
     setTasks(prev => prev.filter(t => t.id !== editingTask.id));
     setCurrentView(currentView === 'viewer' ? viewerReturnView : previousView);
@@ -385,7 +431,7 @@ const MainApp: React.FC = () => {
 
   // Real-time update handler
   const handleTaskUpdate = (updatedTask: Task) => {
-    if (guestMode) return;
+    if (guestMode && guestConfig.restrictEditTask) return;
     if (isCreatingNewTask) {
       // For new tasks, keep updates local until explicit save.
       setEditingTask(updatedTask);
@@ -422,7 +468,7 @@ const MainApp: React.FC = () => {
   };
 
   const handleCreateNew = () => {
-    if (guestMode) return;
+    if (guestMode && guestConfig.restrictCreateTask) return;
     if (mainRef.current) {
       scrollPositionRef.current = mainRef.current.scrollTop;
     }
@@ -451,6 +497,7 @@ const MainApp: React.FC = () => {
 
   const handleSaveTask = () => {
     if (currentView !== 'editor') return;
+    if (guestMode && (isCreatingNewTask ? guestConfig.restrictCreateTask : guestConfig.restrictEditTask)) return;
 
     if (isCreatingNewTask && editingTask) {
       setTasks(prev => {
@@ -528,21 +575,24 @@ const MainApp: React.FC = () => {
               <div className="flex items-center justify-end gap-2 flex-wrap">
                 {guestMode && (
                   <div className="px-2.5 py-1 rounded-full border border-amber-200 bg-amber-50 text-amber-700 text-[11px] font-bold uppercase tracking-wide">
-                    Guest Readonly
+                    {guestConfig.restrictEditTask ? 'Guest Readonly' : 'Guest Mode'}
                   </div>
                 )}
                 {!isDetailView ? (
                   <nav className="flex items-center gap-1 bg-white/30 backdrop-blur-md border border-white/50 p-1 rounded-xl shadow-sm">
-                    <Tooltip content={isSnowing ? "Stop Snow" : "Let it Snow"}>
-                      <button
-                        onClick={() => setIsSnowing(!isSnowing)}
-                        className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${isSnowing ? 'bg-blue-50/80 text-blue-500 shadow-sm' : 'text-slate-400 hover:text-orange-500 hover:bg-orange-50/50'}`}
-                      >
-                        <span className="material-symbols-outlined text-[20px]">ac_unit</span>
-                      </button>
-                    </Tooltip>
-
-                    <div className="w-px h-6 bg-slate-200/50 mx-1"></div>
+                    {(!guestMode || !guestConfig.restrictToggleSnow) && (
+                      <>
+                        <Tooltip content={isSnowing ? "Stop Snow" : "Let it Snow"}>
+                          <button
+                            onClick={() => setIsSnowing(!isSnowing)}
+                            className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${isSnowing ? 'bg-blue-50/80 text-blue-500 shadow-sm' : 'text-slate-400 hover:text-orange-500 hover:bg-orange-50/50'}`}
+                          >
+                            <span className="material-symbols-outlined text-[20px]">ac_unit</span>
+                          </button>
+                        </Tooltip>
+                        <div className="w-px h-6 bg-slate-200/50 mx-1"></div>
+                      </>
+                    )}
 
                     <Tooltip content="Home">
                       <button
@@ -553,16 +603,21 @@ const MainApp: React.FC = () => {
                       </button>
                     </Tooltip>
 
-                    <div className="w-px h-6 bg-slate-200/50 mx-1"></div>
+                    {(!guestMode || !guestConfig.restrictViewDashboard) && (
+                      <>
+                        <div className="w-px h-6 bg-slate-200/50 mx-1"></div>
+                        <Tooltip content="Dashboard">
+                          <button
+                            onClick={() => navigateToView('dashboard')}
+                            className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${currentView === 'dashboard' ? 'bg-orange-100/80 text-orange-600 shadow-inner' : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50/50'}`}
+                          >
+                            <span className="material-symbols-outlined text-[20px]">dashboard</span>
+                          </button>
+                        </Tooltip>
+                      </>
+                    )}
 
-                    <Tooltip content="Dashboard">
-                      <button
-                        onClick={() => navigateToView('dashboard')}
-                        className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${currentView === 'dashboard' ? 'bg-orange-100/80 text-orange-600 shadow-inner' : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50/50'}`}
-                      >
-                        <span className="material-symbols-outlined text-[20px]">dashboard</span>
-                      </button>
-                    </Tooltip>
+                    <div className="w-px h-6 bg-slate-200/50 mx-1"></div>
 
                     <Tooltip content="Timeline">
                       <button
@@ -585,38 +640,42 @@ const MainApp: React.FC = () => {
                           <span className="material-symbols-outlined text-[14px]">arrow_back</span>
                           Back
                         </button>
-                        {!guestMode && (
+                        {(!guestMode || !guestConfig.restrictToggleFavorite || !guestConfig.restrictDeleteTask) && (
                           <>
-                            <button
-                              onClick={handleToggleFavorite}
-                              className={`p-2 rounded-md transition-colors ${editingTask?.favorite ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}`}
-                              title={editingTask?.favorite ? 'Unfavorite' : 'Favorite'}
-                            >
-                              <span className="material-symbols-outlined text-[20px]">star</span>
-                            </button>
-                            <div className="relative" ref={menuRef}>
+                            {(!guestMode || !guestConfig.restrictToggleFavorite) && (
                               <button
-                                onClick={() => setShowMoreMenu(!showMoreMenu)}
-                                className="text-slate-400 hover:text-primary p-2 transition-colors rounded-md hover:bg-orange-50/50"
+                                onClick={handleToggleFavorite}
+                                className={`p-2 rounded-md transition-colors ${editingTask?.favorite ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}`}
+                                title={editingTask?.favorite ? 'Unfavorite' : 'Favorite'}
                               >
-                                <span className="material-symbols-outlined text-[20px]">more_horiz</span>
+                                <span className="material-symbols-outlined text-[20px]">star</span>
                               </button>
-                              {showMoreMenu && (
-                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-20 animate-fade-in origin-top-right">
-                                  <button
-                                    onClick={handleDeleteTask}
-                                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                  >
-                                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                                    Delete Task
-                                  </button>
-                                </div>
-                              )}
-                            </div>
+                            )}
+                            {(!guestMode || !guestConfig.restrictDeleteTask) && (
+                              <div className="relative" ref={menuRef}>
+                                <button
+                                  onClick={() => setShowMoreMenu(!showMoreMenu)}
+                                  className="text-slate-400 hover:text-primary p-2 transition-colors rounded-md hover:bg-orange-50/50"
+                                >
+                                  <span className="material-symbols-outlined text-[20px]">more_horiz</span>
+                                </button>
+                                {showMoreMenu && (
+                                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-20 animate-fade-in origin-top-right">
+                                    <button
+                                      onClick={handleDeleteTask}
+                                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                    >
+                                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                                      Delete Task
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </>
                         )}
                       </>
-                    ) : guestMode ? (
+                    ) : (guestMode && guestConfig.restrictEditTask) ? (
                       <button
                         onClick={() => setCurrentView(previousView)}
                         className="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-4 py-2 rounded-xl font-bold text-xs border border-slate-200"
@@ -648,32 +707,36 @@ const MainApp: React.FC = () => {
                         </button>
                         {!isCreatingNewTask && (
                           <>
-                            <button
-                              onClick={handleToggleFavorite}
-                              className={`p-2 rounded-md transition-colors ${editingTask?.favorite ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}`}
-                              title={editingTask?.favorite ? 'Unfavorite' : 'Favorite'}
-                            >
-                              <span className="material-symbols-outlined text-[20px]">star</span>
-                            </button>
-                            <div className="relative" ref={menuRef}>
+                            {(!guestMode || !guestConfig.restrictToggleFavorite) && (
                               <button
-                                onClick={() => setShowMoreMenu(!showMoreMenu)}
-                                className="text-slate-400 hover:text-primary p-2 transition-colors rounded-md hover:bg-orange-50/50"
+                                onClick={handleToggleFavorite}
+                                className={`p-2 rounded-md transition-colors ${editingTask?.favorite ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}`}
+                                title={editingTask?.favorite ? 'Unfavorite' : 'Favorite'}
                               >
-                                <span className="material-symbols-outlined text-[20px]">more_horiz</span>
+                                <span className="material-symbols-outlined text-[20px]">star</span>
                               </button>
-                              {showMoreMenu && (
-                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-20 animate-fade-in origin-top-right">
-                                  <button
-                                    onClick={handleDeleteTask}
-                                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                  >
-                                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                                    Delete Task
-                                  </button>
-                                </div>
-                              )}
-                            </div>
+                            )}
+                            {(!guestMode || !guestConfig.restrictDeleteTask) && (
+                              <div className="relative" ref={menuRef}>
+                                <button
+                                  onClick={() => setShowMoreMenu(!showMoreMenu)}
+                                  className="text-slate-400 hover:text-primary p-2 transition-colors rounded-md hover:bg-orange-50/50"
+                                >
+                                  <span className="material-symbols-outlined text-[20px]">more_horiz</span>
+                                </button>
+                                {showMoreMenu && (
+                                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-20 animate-fade-in origin-top-right">
+                                    <button
+                                      onClick={handleDeleteTask}
+                                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                    >
+                                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                                      Delete Task
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </>
                         )}
                       </>
@@ -758,13 +821,13 @@ const MainApp: React.FC = () => {
               tasks={filteredTasks}
               categories={CATEGORIES}
               onTaskClick={handleTaskClick}
-              readonly={guestMode}
+              readonly={guestMode && guestConfig.restrictCreateTask}
               selectedCategory={timelineCategory}
               onCategorySelect={setTimelineCategory}
             />
           </div>
         )}
-        {currentView === 'editor' && !guestMode && (
+        {currentView === 'editor' && (!guestMode || !guestConfig.restrictEditTask) && (
           <TaskEditor
             task={editingTask}
             categories={CATEGORIES}
@@ -775,7 +838,7 @@ const MainApp: React.FC = () => {
         {currentView === 'viewer' && (
           <TaskView
             task={editingTask}
-            canEdit={!guestMode}
+            canEdit={!guestMode || !guestConfig.restrictEditTask}
             onEdit={handleEditTaskFromViewer}
           />
         )}
@@ -896,7 +959,7 @@ const MainApp: React.FC = () => {
 
                 {/* Right fixed anchor slot: 40px independent layer */}
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 [transform:translate3d(0,-50%,0)] will-change-transform w-10 h-10">
-                  {!guestMode ? (
+                  {(!guestMode || !guestConfig.restrictCreateTask) ? (
                     <button
                       onClick={() => {
                         setIsSearchExpanded(false);
