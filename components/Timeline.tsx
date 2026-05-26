@@ -28,7 +28,7 @@ const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, rea
 
   const groupedTasks = useMemo(() => {
     const groups: Record<string, Task[]> = {};
-    const sortedTasks = [...filteredTasks].sort((a, b) => new Date(a.dateStr).getTime() - new Date(b.dateStr).getTime());
+    const sortedTasks = [...filteredTasks].sort((a, b) => new Date(b.dateStr).getTime() - new Date(a.dateStr).getTime());
 
     sortedTasks.forEach(task => {
       const date = new Date(task.dateStr);
@@ -43,7 +43,7 @@ const Timeline: React.FC<TimelineProps> = ({ tasks, categories, onTaskClick, rea
   }, [filteredTasks, viewMode]);
 
   const sortedGroupKeys = useMemo(() => {
-    return Object.keys(groupedTasks).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+    return Object.keys(groupedTasks).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
   }, [groupedTasks]);
 
   const getCategoryStyles = (catName: string) => {
