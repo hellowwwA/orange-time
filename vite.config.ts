@@ -4,28 +4,30 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
+  // Docker 容器内用 host.docker.internal，本地开发用 localhost
+  const authApiUrl = env.VITE_AUTH_API_URL || 'http://localhost:8080';
   return {
     server: {
       port: 3000,
       host: '0.0.0.0',
       proxy: {
         '/api/auth/github/callback': {
-          target: 'http://localhost:8080',
+          target: authApiUrl,
           changeOrigin: true,
           secure: false,
         },
         '/api/auth': {
-          target: 'http://localhost:8080',
+          target: authApiUrl,
           changeOrigin: true,
           secure: false,
         },
         '/api/user': {
-          target: 'http://localhost:8080',
+          target: authApiUrl,
           changeOrigin: true,
           secure: false,
         },
         '/api/images/generate-background': {
-          target: 'http://localhost:8080',
+          target: authApiUrl,
           changeOrigin: true,
         },
         '/api/tasks': {
