@@ -64,7 +64,10 @@ Access the application at `http://localhost:5173`.
 
 ```
 orange-time/
+├── .agents/          # AI Agent skills and behaviors
+├── .specify/         # Spec Kit templates, workflows, and memory
 ├── components/       # React components (Dashboard, Timeline, etc.)
+├── specs/            # Feature specifications, plans, and walkthroughs
 ├── server/           # Backend server files
 ├── start.sh          # Startup script
 ├── App.tsx           # Main application component
@@ -72,6 +75,17 @@ orange-time/
 ├── vite.config.ts    # Vite configuration
 └── Dockerfile        # Docker configuration
 ```
+
+## 🔄 Specification-Driven Development (SDD)
+
+This repository is configured with **GitHub Spec Kit** to enforce Spec-Driven Development. Before implementing any feature:
+
+1. **Specify**: Generate or update the feature specification file (`spec.md`) under `specs/[###-feature-name]/` using the `$speckit-specify` command.
+2. **Plan**: Define the technical design and changes inside `plan.md` using the `$speckit-plan` command.
+3. **Tasks**: Break down the implementation plan into an actionable Checklist in `tasks.md` using `$speckit-tasks`.
+4. **Implement**: Carry out code modifications task-by-task, and document the changes in `walkthrough.md` when completed.
+
+Governing development constraints and project rules are defined in the Project Constitution at `.specify/memory/constitution.md`.
 
 ## 📄 License
 
